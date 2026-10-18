@@ -100,6 +100,8 @@ export default function StudentDashboard() {
   // null until the real stats load — no invented placeholder numbers
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [notices, setNotices] = useState([]);
+  const [loadingNotices, setLoadingNotices] = useState(true);
   const [viewingFile, setViewingFile] = useState(null); // Active file in InAppViewer
   const navigate = useNavigate();
 
@@ -133,6 +135,28 @@ export default function StudentDashboard() {
     };
 
     fetchAttendance();
+  }, []);
+
+  // Fetch notices targeted to this student's year/branch/division/batch
+  useEffect(() => {
+    const fetchNotices = async () => {
+      try {
+        const token = localStorage.getItem('studyflow_jwt') || localStorage.getItem('studyflow_token');
+        const res = await fetch('/api/notices/student', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (res.ok && data.notices) {
+          setNotices(data.notices);
+        }
+      } catch (err) {
+        console.error('Failed to load notices', err);
+      } finally {
+        setLoadingNotices(false);
+      }
+    };
+
+    fetchNotices();
   }, []);
 
   const handleLogout = () => {
@@ -222,6 +246,59 @@ export default function StudentDashboard() {
               <p className="text-xs text-slate-500 mt-1">
                 Your attendance summary will appear here once your teachers mark a class.
               </p>
+            </div>
+          )}
+        </section>
+
+        {/* Notices from teachers */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h3 className="text-lg font-extrabold text-slate-800 mb-4">📢 Notices</h3>
+          {loadingNotices ? (
+            <p className="text-sm text-slate-400 font-semibold">Loading notices…</p>
+          ) : notices.length === 0 ? (
+            <p className="text-sm text-slate-400">No notices for your class right now.</p>
+          ) : (
+            <div className="space-y-3">
+              {notices.map((n) => {
+                const nid = n.id ?? n.ID;
+                const pinned = Number(n.is_pinned ?? n.IS_PINNED) === 1;
+                const teacherName = n.teacher_name ?? n.TEACHER_NAME;
+                const createdAt = n.created_at ?? n.CREATED_AT;
+                const targetBatch = n.batch ?? n.BATCH;
+                return (
+                  <div
+                    key={nid}
+                    className={`rounded-xl border p-4 ${
+                      pinned
+                        ? 'border-amber-300 bg-amber-50/50'
+                        : 'border-slate-200 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      {pinned && (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full">
+                          📌 Pinned
+                        </span>
+                      )}
+                      {targetBatch && (
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-mono font-bold rounded">
+                          Batch {targetBatch}
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-extrabold text-slate-800">
+                      {n.title ?? n.TITLE}
+                    </h4>
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap mt-1">
+                      {n.body ?? n.BODY}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-medium mt-2">
+                      {teacherName && <>By {teacherName} · </>}
+                      {createdAt && new Date(createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

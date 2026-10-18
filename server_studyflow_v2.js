@@ -1069,9 +1069,9 @@ app.get('/api/materials/student', authenticateJWT, async (req, res) => {
       JOIN classes c ON sm.class_id = c.id
       JOIN teachers t ON c.teacher_id = t.id
       LEFT JOIN class_batches cb ON sm.batch_target_id = cb.id
-      WHERE c.academic_year = :academic_year
-        AND c.branch = :branch
-        AND c.division = :division
+      WHERE UPPER(c.academic_year) = UPPER(:academic_year)
+        AND UPPER(c.branch) = UPPER(:branch)
+        AND UPPER(c.division) = UPPER(:division)
         AND (
           sm.batch_target_id IS NULL 
           OR UPPER(cb.batch_name) = UPPER(:batch)
@@ -1138,6 +1138,155 @@ app.get('/api/attendance/student', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('Student attendance error:', error);
     return res.status(500).json({ success: false, error: 'Failed to fetch attendance.' });
+  }
+});
+
+// ----------------------------------------------------
+// 7. Notice Routes
+// ----------------------------------------------------
+
+// POST /api/notices - teacher posts a notice targeted to a year/branch/division
+// (batch omitted or empty = whole division)
+app.post('/api/notices', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const academicYear = cleanStr(req.body.academic_year, 10).toUpperCase();
+    let branch = cleanStr(req.body.branch, 30).toUpperCase() || 'COMMON';
+    const division = isNonEmpty(req.body.division, 5);
+    const batchRaw = cleanStr(req.body.batch, 10);
+    const title = isNonEmpty(req.body.title, 200);
+    const body = isNonEmpty(req.body.body, 2000);
+    const isPinned = req.body.is_pinned ? 1 : 0;
+
+    if (!division || !title || !body) {
+      return res.status(400).json({ success: false, error: 'division, title, and body are required.' });
+    }
+    if (!ACADEMIC_YEARS.includes(academicYear)) {
+      return res.status(400).json({ success: false, error: `academic_year must be one of: ${ACADEMIC_YEARS.join(', ')}.` });
+    }
+    if (academicYear === 'FE') {
+      branch = 'Common';
+    }
+
+    const batch = batchRaw ? batchRaw.toUpperCase() : null;
+
+    const insertSql = `
+      INSERT INTO notices (teacher_id, academic_year, branch, division, batch, title, body, is_pinned)
+      VALUES (:teacher_id, :academic_year, :branch, :division, :batch, :title, :body, :is_pinned)
+      RETURNING id INTO :out_id
+    `;
+    const result = await queryExecutor(insertSql, {
+      teacher_id: Number(req.user.id),
+      academic_year: academicYear,
+      branch,
+      division: division.toUpperCase(),
+      batch,
+      title,
+      body,
+      is_pinned: isPinned,
+      out_id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Notice posted.',
+      notice: {
+        id: result.outBinds.out_id[0],
+        academic_year: academicYear,
+        branch,
+        division: division.toUpperCase(),
+        batch,
+        title,
+        body,
+        is_pinned: isPinned
+      }
+    });
+  } catch (error) {
+    console.error('Notice creation error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to post notice.' });
+  }
+});
+
+// GET /api/notices/teacher - the logged-in teacher's own notices, pinned first
+app.get('/api/notices/teacher', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const sql = `
+      SELECT id, academic_year, branch, division, batch, title, body, is_pinned, created_at
+      FROM notices
+      WHERE teacher_id = :teacher_id
+      ORDER BY is_pinned DESC, created_at DESC
+    `;
+    const result = await queryExecutor(sql, [Number(req.user.id)]);
+    return res.json({ success: true, count: result.rows ? result.rows.length : 0, notices: result.rows || [] });
+  } catch (error) {
+    console.error('Fetch teacher notices error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve notices.' });
+  }
+});
+
+// DELETE /api/notices/:id - own notices only
+app.delete('/api/notices/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const noticeId = Number(req.params.id);
+    const lookup = await queryExecutor('SELECT teacher_id FROM notices WHERE id = :id', [noticeId]);
+    if (!lookup.rows || lookup.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Notice not found.' });
+    }
+    if (Number(lookup.rows[0].TEACHER_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own notices.' });
+    }
+
+    await queryExecutor('DELETE FROM notices WHERE id = :id', [noticeId]);
+    return res.json({ success: true, message: 'Notice deleted.' });
+  } catch (error) {
+    console.error('Notice delete error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to delete notice.' });
+  }
+});
+
+// GET /api/notices/student - notices scoped to the student's JWT credentials
+app.get('/api/notices/student', authenticateJWT, async (req, res) => {
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ success: false, error: 'Student access required.' });
+    }
+
+    const { academic_year, branch, division, batch } = req.user;
+
+    const sql = `
+      SELECT
+        n.id, n.title, n.body, n.is_pinned, n.academic_year, n.branch,
+        n.division, n.batch, n.created_at,
+        t.name AS teacher_name
+      FROM notices n
+      JOIN teachers t ON n.teacher_id = t.id
+      WHERE UPPER(n.academic_year) = UPPER(:academic_year)
+        AND UPPER(n.branch) = UPPER(:branch)
+        AND UPPER(n.division) = UPPER(:division)
+        AND (n.batch IS NULL OR UPPER(n.batch) = UPPER(:batch))
+      ORDER BY n.is_pinned DESC, n.created_at DESC
+    `;
+
+    const result = await queryExecutor(sql, {
+      academic_year: String(academic_year),
+      branch: String(branch),
+      division: String(division),
+      batch: String(batch)
+    });
+
+    return res.json({
+      success: true,
+      count: result.rows ? result.rows.length : 0,
+      notices: result.rows || []
+    });
+  } catch (error) {
+    console.error('Student fetch notices error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to load notices.' });
   }
 });
 

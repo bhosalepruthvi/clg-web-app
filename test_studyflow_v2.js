@@ -40,6 +40,7 @@ function createMockDb() {
     batches: [],    // {ID, CLASS_ID, BATCH_NAME}
     materials: [],  // {ID, CLASS_ID, BATCH_TARGET_ID, UNIT_NUMBER, TITLE, FILE_URL}
     attendance: [], // {STUDENT_ID, CLASS_ID, ATTENDANCE_DATE, STATUS}
+    notices: [],    // {ID, TEACHER_ID, ACADEMIC_YEAR, BRANCH, DIVISION, BATCH, TITLE, BODY, IS_PINNED, CREATED_AT}
     calls: []
   };
   const up = (v) => String(v == null ? '' : v).toUpperCase();
@@ -189,6 +190,54 @@ function createMockDb() {
           (r.TARGET_BATCH == null || up(r.TARGET_BATCH) === up(binds.batch))
         );
       }
+      return { rows };
+    }
+
+    // ---- notices ----
+    if (S.startsWith('INSERT INTO notices')) {
+      const id = ++state.nextId;
+      state.notices.push({
+        ID: id, TEACHER_ID: Number(binds.teacher_id), ACADEMIC_YEAR: binds.academic_year,
+        BRANCH: binds.branch, DIVISION: binds.division, BATCH: binds.batch ?? null,
+        TITLE: binds.title, BODY: binds.body, IS_PINNED: binds.is_pinned ?? 0,
+        CREATED_AT: binds.__created_at || new Date().toISOString()
+      });
+      return { rows: [], outBinds: { out_id: [id] } };
+    }
+    if (S.includes('SELECT teacher_id FROM notices WHERE id')) {
+      const id = Number(bv(binds, 'id', 0));
+      return { rows: state.notices.filter((n) => n.ID === id).map((n) => ({ TEACHER_ID: n.TEACHER_ID })) };
+    }
+    if (S.startsWith('DELETE FROM notices')) {
+      const id = Number(bv(binds, 'id', 0));
+      const before = state.notices.length;
+      state.notices = state.notices.filter((n) => n.ID !== id);
+      return { rows: [], rowsAffected: before - state.notices.length };
+    }
+    if (S.includes('FROM notices n')) {
+      // Student feed: scoped + pinned-first. Route guards role; mock applies the
+      // same UPPER() comparisons as the real SQL.
+      let rows = state.notices.filter((n) =>
+        up(n.ACADEMIC_YEAR) === up(binds.academic_year) &&
+        up(n.BRANCH) === up(binds.branch) &&
+        up(n.DIVISION) === up(binds.division) &&
+        (n.BATCH == null || up(n.BATCH) === up(binds.batch))
+      );
+      rows = rows.map((n) => {
+        const t = state.teachers.find((tc) => tc.ID === n.TEACHER_ID) || {};
+        return { ...n, TEACHER_NAME: t.NAME || null };
+      });
+      rows.sort((a, b) =>
+        (b.IS_PINNED - a.IS_PINNED) || String(b.CREATED_AT).localeCompare(String(a.CREATED_AT)));
+      return { rows };
+    }
+    if (S.includes('FROM notices')) {
+      // Teacher list: own notices, pinned first.
+      const tid = Number(bv(binds, 'teacher_id', 0));
+      const rows = state.notices
+        .filter((n) => n.TEACHER_ID === tid)
+        .sort((a, b) =>
+          (b.IS_PINNED - a.IS_PINNED) || String(b.CREATED_AT).localeCompare(String(a.CREATED_AT)));
       return { rows };
     }
 
@@ -681,6 +730,146 @@ test('classes: FE creation forces Common branch', async () => {
   });
   assert.equal(r.status, 201);
   assert.equal(r.json.class.branch, 'Common');
+});
+
+// ---------------------------------------------------------------------------
+// Notices
+// ---------------------------------------------------------------------------
+
+function seedNotice(dbState, over = {}) {
+  const n = {
+    ID: 9000 + dbState.state.notices.length,
+    TEACHER_ID: TEACHER_A.id,
+    ACADEMIC_YEAR: 'SE', BRANCH: 'CE', DIVISION: 'A', BATCH: null,
+    TITLE: 'Notice', BODY: 'Body text.', IS_PINNED: 0,
+    CREATED_AT: '2026-10-17T09:00:00Z',
+    ...over
+  };
+  dbState.state.notices.push(n);
+  return n;
+}
+
+test('notices: teacher posts with defaults; FE branch normalized to Common', async () => {
+  seedTeacher(db, TEACHER_A);
+  const token = await loginTeacher(TEACHER_A);
+
+  const r = await api('POST', '/api/notices', {
+    token,
+    body: { academic_year: 'FE', division: 'E', title: 'Maths schedule', body: 'Unit 3 moved to Friday.' }
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.json.notice.branch, 'Common');
+  assert.equal(r.json.notice.batch, null);
+  assert.equal(r.json.notice.is_pinned, 0);
+  assert.equal(r.json.notice.division, 'E');
+  assert.equal(db.state.notices.length, 1);
+});
+
+test('notices: invalid year and missing fields rejected without insert', async () => {
+  seedTeacher(db, TEACHER_A);
+  const token = await loginTeacher(TEACHER_A);
+
+  const badYear = await api('POST', '/api/notices', {
+    token, body: { academic_year: 'XX', division: 'A', title: 't', body: 'b' }
+  });
+  assert.equal(badYear.status, 400);
+
+  const missingBody = await api('POST', '/api/notices', {
+    token, body: { academic_year: 'SE', division: 'A', title: 't' }
+  });
+  assert.equal(missingBody.status, 400);
+  assert.equal(db.state.notices.length, 0);
+});
+
+test('notices: teacher list shows only own notices, pinned first', async () => {
+  seedTeacher(db, TEACHER_A);
+  seedTeacher(db, TEACHER_B);
+  const token = await loginTeacher(TEACHER_A);
+
+  seedNotice(db, { ID: 1, TEACHER_ID: TEACHER_A.id, TITLE: 'Older', CREATED_AT: '2026-10-16T09:00:00Z' });
+  seedNotice(db, { ID: 2, TEACHER_ID: TEACHER_A.id, TITLE: 'Pinned', IS_PINNED: 1, CREATED_AT: '2026-10-15T09:00:00Z' });
+  seedNotice(db, { ID: 3, TEACHER_ID: TEACHER_B.id, TITLE: 'Not mine', CREATED_AT: '2026-10-18T09:00:00Z' });
+
+  const r = await api('GET', '/api/notices/teacher', { token });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.count, 2);
+  assert.deepEqual(r.json.notices.map((n) => n.TITLE), ['Pinned', 'Older']);
+});
+
+test('notices: delete own 200, foreign 403, missing 404', async () => {
+  seedTeacher(db, TEACHER_A);
+  seedTeacher(db, TEACHER_B);
+  const tokenA = await loginTeacher(TEACHER_A);
+
+  seedNotice(db, { ID: 1, TEACHER_ID: TEACHER_A.id });
+  seedNotice(db, { ID: 2, TEACHER_ID: TEACHER_B.id });
+
+  const foreign = await api('DELETE', '/api/notices/2', { token: tokenA });
+  assert.equal(foreign.status, 403);
+
+  const missing = await api('DELETE', '/api/notices/999', { token: tokenA });
+  assert.equal(missing.status, 404);
+
+  const own = await api('DELETE', '/api/notices/1', { token: tokenA });
+  assert.equal(own.status, 200);
+  assert.equal(db.state.notices.length, 1);
+});
+
+test('notices: student feed is hierarchy-scoped, division-wide included, pinned first', async () => {
+  seedTeacher(db, TEACHER_A);
+  const stu = seedStudent(db); // SE-CE-A-A1
+  const token = await loginStudentCode(stu.ACCESS_CODE);
+
+  seedNotice(db, { ID: 1, TITLE: 'Div-wide', BATCH: null, IS_PINNED: 1, CREATED_AT: '2026-10-15T09:00:00Z' });
+  seedNotice(db, { ID: 2, TITLE: 'Batch A1', BATCH: 'A1', CREATED_AT: '2026-10-17T09:00:00Z' });
+  seedNotice(db, { ID: 3, TITLE: 'Batch A2', BATCH: 'A2', CREATED_AT: '2026-10-17T09:00:00Z' });
+  seedNotice(db, { ID: 4, TITLE: 'Other division', DIVISION: 'B', CREATED_AT: '2026-10-17T09:00:00Z' });
+  seedNotice(db, { ID: 5, TITLE: 'Other year', ACADEMIC_YEAR: 'TE', CREATED_AT: '2026-10-17T09:00:00Z' });
+
+  const r = await api('GET', '/api/notices/student', { token });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.count, 2);
+  assert.deepEqual(r.json.notices.map((n) => n.TITLE), ['Div-wide', 'Batch A1']);
+  assert.equal(r.json.notices[0].TEACHER_NAME, TEACHER_A.name);
+});
+
+test('notices: role gates — students cannot post, teachers cannot read student feed', async () => {
+  seedTeacher(db, TEACHER_A);
+  const stu = seedStudent(db);
+  const studentToken = await loginStudentCode(stu.ACCESS_CODE);
+  const teacherToken = await loginTeacher(TEACHER_A);
+
+  const post = await api('POST', '/api/notices', {
+    token: studentToken,
+    body: { academic_year: 'SE', division: 'A', title: 't', body: 'b' }
+  });
+  assert.equal(post.status, 403);
+
+  const feed = await api('GET', '/api/notices/student', { token: teacherToken });
+  assert.equal(feed.status, 403);
+});
+
+test('materials: FE student sees division-wide FE materials despite branch casing', async () => {
+  seedTeacher(db, TEACHER_A);
+  // Class branch stored title-case 'Common' (server normalization); student row
+  // stored 'COMMON'. The route's UPPER() comparisons must still join them; the
+  // mock mirrors that with case-insensitive filters on both sides.
+  seedClass(db, { ID: 30, ACADEMIC_YEAR: 'FE', BRANCH: 'Common', DIVISION: 'E', SUBJECT_NAME: 'Maths' });
+  db.state.materials.push({
+    ID: 31, CLASS_ID: 30, BATCH_TARGET_ID: null,
+    UNIT_NUMBER: '1', TITLE: 'Algebra notes', FILE_URL: '/uploads/algebra.pdf'
+  });
+
+  const stu = seedStudent(db, {
+    ID: 600, ACADEMIC_YEAR: 'FE', BRANCH: 'COMMON', DIVISION: 'E',
+    BATCH: 'E1', ROLL_NUMBER: '36', ACCESS_CODE: 'FE-E-E1-36'
+  });
+  const token = await loginStudentCode(stu.ACCESS_CODE);
+
+  const r = await api('GET', '/api/materials/student', { token });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.materials.length, 1);
+  assert.equal(r.json.materials[0].TITLE, 'Algebra notes');
 });
 
 // ---------------------------------------------------------------------------

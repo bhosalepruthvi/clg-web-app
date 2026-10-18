@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import ClassManager from './ClassManager';
 import AttendanceTaker from './AttendanceTaker';
 import MaterialUpload from './MaterialUpload';
+import NoticeBoard from './NoticeBoard';
 
 export default function TeacherDashboard() {
-  const [activeTab, setActiveTab] = useState('classes'); // 'classes' | 'attendance' | 'upload'
+  const [activeTab, setActiveTab] = useState('classes'); // 'classes' | 'attendance' | 'upload' | 'notices'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -38,6 +39,12 @@ export default function TeacherDashboard() {
       label: 'Upload Material',
       icon: '📤',
       description: 'Publish unit notes & lab PDFs',
+    },
+    {
+      id: 'notices',
+      label: 'Notices',
+      icon: '📢',
+      description: 'Announcements for your classes',
     },
   ];
 
@@ -147,6 +154,7 @@ export default function TeacherDashboard() {
         {activeTab === 'classes' && <ClassManager />}
         {activeTab === 'attendance' && <AttendanceTaker />}
         {activeTab === 'upload' && <MaterialUpload />}
+        {activeTab === 'notices' && <NoticeBoard />}
       </main>
     </div>
   );

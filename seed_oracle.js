@@ -201,6 +201,55 @@ async function run() {
       }
     }
 
+    // ---- Demo notices (only if the teacher has none yet) ----
+    const nRes = await conn.execute(
+      'SELECT COUNT(*) AS n FROM notices WHERE teacher_id = :id',
+      [teacherId],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    if (Number(nRes.rows[0].N) > 0) {
+      console.log('Notices already exist for this teacher — skipped.');
+    } else {
+      const demoNotices = [
+        {
+          academic_year: 'SE', branch: 'CE', division: 'A', batch: null,
+          title: 'Welcome to StudyFlow',
+          body: 'All study material and attendance records for this term will be published here. Check the Subject Vault regularly.',
+          is_pinned: 1
+        },
+        {
+          academic_year: 'SE', branch: 'CE', division: 'A', batch: 'A1',
+          title: 'Graphics Lab moved to Lab-2',
+          body: 'This week\'s Engineering Graphics Lab session for batch A1 moves to Lab-2. Bring your drawing kits.',
+          is_pinned: 0
+        },
+        {
+          academic_year: 'FE', branch: 'Common', division: 'E', batch: null,
+          title: 'Maths tutorial schedule',
+          body: 'Engineering Mathematics tutorials run every Wednesday, 4–5 pm, in room E-204.',
+          is_pinned: 0
+        }
+      ];
+      for (const n of demoNotices) {
+        await conn.execute(
+          `INSERT INTO notices (teacher_id, academic_year, branch, division, batch, title, body, is_pinned)
+           VALUES (:tid, :year, :branch, :division, :batch, :title, :body, :pinned)`,
+          {
+            tid: teacherId,
+            year: n.academic_year,
+            branch: n.branch,
+            division: n.division,
+            batch: n.batch,
+            title: n.title,
+            body: n.body,
+            pinned: n.is_pinned
+          },
+          { autoCommit: true }
+        );
+        console.log(`Created notice: ${n.title} (${n.academic_year} ${n.branch} Div ${n.division}${n.batch ? ' Batch ' + n.batch : ''}${n.is_pinned ? ', pinned' : ''})`);
+      }
+    }
+
     console.log('\n================ DEMO CREDENTIALS ================');
     console.log(`Teacher login : ${DEMO_TEACHER.email} / ${DEMO_TEACHER.password}`);
     console.log('Student codes (code-only login):');

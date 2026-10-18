@@ -92,6 +92,10 @@ All endpoints except `/api/auth/*` require `Authorization: Bearer <JWT>`.
 | GET | `/api/materials/teacher` | teacher | Own uploads |
 | DELETE | `/api/materials/:id` | teacher (own) | Delete an upload and its file |
 | GET | `/api/materials/student` | student | Materials scoped to own year/branch/division/batch |
+| POST | `/api/notices` | teacher | Post a notice; `batch` omitted = whole division; FE forces branch `Common` |
+| GET | `/api/notices/teacher` | teacher | Own notices, pinned first |
+| DELETE | `/api/notices/:id` | teacher (own) | Delete a notice |
+| GET | `/api/notices/student` | student | Notices for own year/branch/division; includes division-wide, pinned first |
 
 ## Testing
 
