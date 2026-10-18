@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# SQLite database and its write-ahead log files.
+# These contain real user data and password hashes - never commit them.
+portal.db
+portal.db-shm
+portal.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded study material (user content)
+uploads/
+
+# Logs
+logs/
+*.log
+
+# Local environment configuration (secrets live here)
+.env
+.env.*
+# ...except the committed template
+!.env.example
+
+# Oracle Autonomous DB wallet (contains client credentials - never commit)
+wallet/
+
+# Frontend build output
+react-frontend/dist/
+
+# Editor and OS files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+*.swp
+
+# Local verification scratch files
+.__verify*
+.__diag.js
+.npm-cache/

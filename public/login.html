@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>College Study Portal — Login</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#1e3a5f', dark: '#14273e', light: '#2d5485' },
+            accent: '#3b82f6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+
+    /* Animated gradient background */
+    .bg-animated {
+      background: linear-gradient(-45deg, #1e3a5f, #0f2847, #1a3563, #162f52);
+      background-size: 400% 400%;
+      animation: gradientShift 12s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Card slide transitions */
+    .slide-in {
+      animation: slideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .slide-out {
+      animation: slideOut 0.2s ease-in forwards;
+    }
+    @keyframes slideOut {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to   { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    }
+
+    /* Role card hover */
+    .role-card {
+      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      cursor: pointer;
+    }
+    .role-card:hover {
+      transform: translateY(-4px);
+    }
+    .role-card.selected {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.08);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    /* Input focus */
+    .form-input {
+      transition: all 0.2s ease;
+    }
+    .form-input:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Code input special styling */
+    .code-input {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 1.4rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* Password strength bar */
+    .strength-bar {
+      height: 3px;
+      border-radius: 2px;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+
+    /* Loading spinner - fixed dimensions so button never changes size */
+    .spinner {
+      width: 1.125rem !important;
+      height: 1.125rem !important;
+      min-width: 1.125rem !important;
+      min-height: 1.125rem !important;
+      max-width: 1.125rem !important;
+      max-height: 1.125rem !important;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast-enter {
+      animation: toastIn 0.3s ease forwards;
+    }
+    .toast-exit {
+      animation: toastOut 0.3s ease forwards;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(100%); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(100%); }
+    }
+
+    /* Step indicator dots */
+    .step-dot {
+      transition: all 0.3s ease;
+    }
+    .step-dot.active {
+      background: #3b82f6;
+      width: 24px;
+      border-radius: 4px;
+    }
+    .step-dot.done {
+      background: #10b981;
+    }
+  </style>
+</head>
+<body class="bg-animated min-h-screen flex flex-col relative overflow-x-hidden text-slate-800">
+
+  <!-- Background decorative dots & glows -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden opacity-20">
+    <div class="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-blue-500 blur-[120px]"></div>
+    <div class="absolute top-1/2 -right-40 w-[500px] h-[500px] rounded-full bg-indigo-600 blur-[130px]"></div>
+    <div class="absolute -bottom-40 left-1/3 w-[500px] h-[500px] rounded-full bg-cyan-500 blur-[120px]"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:26px_26px] opacity-15"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-80 pointer-events-none"></div>
+
+  <!-- Top Brand Bar -->
+  <header class="relative z-10 flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.825-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"/>
+        </svg>
+      </div>
+      <div>
+        <span class="text-white font-extrabold text-lg tracking-tight">College Study Portal</span>
+        <p class="text-blue-300 text-xs font-medium">Academic Management System</p>
+      </div>
+    </div>
+    <a href="/" class="text-blue-200 hover:text-white text-sm font-medium flex items-center gap-1.5 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      Home
+    </a>
+  </header>
+
+  <!-- Main Content -->
+  <main class="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
+    <div class="w-full max-w-md">
+
+      <!-- ===========================
+           SCREEN 1: ROLE SELECTION
+      ============================ -->
+      <div id="screen-role" class="slide-in">
+        <!-- Card -->
+        <div class="bg-white rounded-2xl shadow-2xl border border-white/30 overflow-hidden">
+
+          <!-- Card Header -->
+          <div class="bg-gradient-to-r from-[#1e3a5f] to-[#1a3563] px-8 py-7 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-3">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.825-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"/>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-extrabold text-white tracking-tight">Welcome Back</h1>
+            <p class="text-blue-200 text-sm mt-1.5">Who are you logging in as?</p>
+          </div>
+
+          <!-- Role Selection Body -->
+          <div class="p-7">
+            <div class="grid grid-cols-2 gap-4 mb-7">
+
+              <!-- Teacher Role Card -->
+              <button onclick="selectRole('teacher')" id="role-teacher"
+                class="role-card p-5 rounded-xl border-2 border-slate-200 bg-slate-50 text-center group hover:border-blue-400 hover:bg-blue-50/50">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#1e3a5f] to-blue-600 flex items-center justify-center mx-auto mb-3 shadow-md shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                  </svg>
+                </div>
+                <div class="font-bold text-slate-800 text-sm">Teacher</div>
+                <div class="text-slate-500 text-xs mt-0.5">Faculty Portal</div>
+                <!-- Selected tick -->
+                <div id="tick-teacher" class="hidden mt-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center mx-auto">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+              </button>
+
+              <!-- Student Role Card -->
+              <button onclick="selectRole('student')" id="role-student"
+                class="role-card p-5 rounded-xl border-2 border-slate-200 bg-slate-50 text-center group hover:border-blue-400 hover:bg-blue-50/50">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center mx-auto mb-3 shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow">
+                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                  </svg>
+                </div>
+                <div class="font-bold text-slate-800 text-sm">Student</div>
+                <div class="text-slate-500 text-xs mt-0.5">Student Portal</div>
+                <!-- Selected tick -->
+                <div id="tick-student" class="hidden mt-2 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center mx-auto">
+                  <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                  </svg>
+                </div>
+              </button>
+            </div>
+
+            <button onclick="proceedWithRole()" id="btn-proceed"
+              class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+              disabled>
+              <span id="btn-proceed-text">Select a role to continue</span>
+              <svg id="btn-arrow" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Footer hint -->
+          <div class="px-7 pb-6 text-center text-xs text-slate-400">
+            New teacher? You can register an account after selecting Teacher.
+          </div>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="flex items-center justify-center gap-2 mt-5">
+          <div class="step-dot active w-6 h-2 bg-blue-400 rounded-full"></div>
+          <div class="step-dot w-2 h-2 bg-white/25 rounded-full"></div>
+          <div class="step-dot w-2 h-2 bg-white/25 rounded-full"></div>
+        </div>
+      </div>
+
+
+      <!-- ===========================
+           SCREEN 2a: TEACHER LOGIN
+      ============================ -->
+      <div id="screen-teacher" class="hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border border-white/30 overflow-hidden">
+
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-[#1e3a5f] to-[#1a3563] px-8 pt-6 pb-5">
+            <!-- Back button -->
+            <button onclick="goBack('teacher')" class="flex items-center gap-1.5 text-blue-200 hover:text-white text-sm font-medium transition-colors mb-4">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+              Back
+            </button>
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-extrabold text-white">Teacher Portal</h2>
+                <p class="text-blue-200 text-xs">Sign in to your faculty account</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab Toggle: Login / Register -->
+          <div class="flex border-b border-slate-100">
+            <button id="tab-login" onclick="switchTab('login')"
+              class="flex-1 py-3.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all">
+              Sign In
+            </button>
+            <button id="tab-register" onclick="switchTab('register')"
+              class="flex-1 py-3.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-600 transition-all">
+              Create Account
+            </button>
+          </div>
+
+          <!-- Alert Banner -->
+          <div id="teacher-alert" class="hidden mx-6 mt-5 p-3.5 rounded-xl text-sm flex items-start gap-2.5"></div>
+
+          <!-- Login Form -->
+          <div id="teacher-login-form" class="p-7 space-y-5">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+              <div class="relative">
+                <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <input type="email" id="login-email" placeholder="your@college.edu"
+                  class="form-input w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Password</label>
+                <button type="button" onclick="openForgotPasswordModal()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+                  Forgot Password?
+                </button>
+              </div>
+              <div class="relative">
+                <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                  </svg>
+                </div>
+                <input type="password" id="login-password" placeholder="Enter password"
+                  class="form-input w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all"
+                  onkeydown="if(event.key==='Enter') doTeacherLogin()">
+                <button type="button" onclick="togglePasswordVisibility('login-password', 'eye-login')"
+                  class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                  <svg id="eye-login" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <button onclick="doTeacherLogin()" id="btn-teacher-login"
+              class="w-full h-12 bg-[#1e3a5f] hover:bg-[#2d5485] text-white font-bold rounded-xl transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2">
+              <span id="teacher-login-text">Sign In</span>
+              <svg class="spinner hidden" id="spinner-teacher-login" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Register Form -->
+          <div id="teacher-register-form" class="p-7 space-y-4 hidden">
+            <div class="grid grid-cols-2 gap-4">
+              <div class="col-span-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+                <input type="text" id="reg-name" placeholder="Prof. Full Name"
+                  class="form-input w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">College Email</label>
+                <input type="email" id="reg-email" placeholder="prof@college.edu"
+                  class="form-input w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+                <div class="relative">
+                  <input type="password" id="reg-password" placeholder="Min 6 chars" oninput="checkPasswordStrength(this.value)"
+                    class="form-input w-full pl-3 pr-10 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+                  <button type="button" onclick="togglePasswordVisibility('reg-password', 'eye-reg')"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <svg id="eye-reg" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </button>
+                </div>
+                <!-- Password strength -->
+                <div class="mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
+                  <div id="strength-bar" class="strength-bar h-full w-0 bg-red-500"></div>
+                </div>
+                <p id="strength-text" class="text-xs text-slate-400 mt-0.5"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm</label>
+                <input type="password" id="reg-confirm" placeholder="Repeat"
+                  class="form-input w-full px-3 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+              </div>
+            </div>
+
+            <!-- Subjects -->
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Subjects You Teach</label>
+              <div class="flex flex-wrap gap-2" id="subject-chips">
+                <!-- Chips generated by JS -->
+              </div>
+              <div class="flex gap-2 mt-2">
+                <input type="text" id="custom-subject" placeholder="Add custom subject..."
+                  class="form-input flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 text-xs outline-none focus:border-blue-400 focus:bg-white transition-all"
+                  onkeydown="if(event.key==='Enter'){addCustomSubject(); event.preventDefault();}">
+                <button onclick="addCustomSubject()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-semibold transition-colors">+ Add</button>
+              </div>
+            </div>
+
+            <button onclick="doTeacherRegister()" id="btn-register"
+              class="w-full py-3.5 bg-[#1e3a5f] hover:bg-[#2d5485] text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+              <span id="register-text">Create Teacher Account</span>
+              <svg class="spinner w-4.5 h-4.5 hidden" id="spinner-register" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="flex items-center justify-center gap-2 mt-5">
+          <div class="step-dot done w-2 h-2 rounded-full"></div>
+          <div class="step-dot active w-6 h-2 rounded-full"></div>
+          <div class="step-dot w-2 h-2 bg-white/25 rounded-full"></div>
+        </div>
+      </div>
+
+
+      <!-- ===========================
+           SCREEN 2b: STUDENT LOGIN
+      ============================ -->
+      <div id="screen-student" class="hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border border-white/30 overflow-hidden">
+
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-indigo-900 to-indigo-700 px-8 pt-6 pb-5">
+            <button onclick="goBack('student')" class="flex items-center gap-1.5 text-indigo-200 hover:text-white text-sm font-medium transition-colors mb-4">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+              Back
+            </button>
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-extrabold text-white">Student Portal</h2>
+                <p class="text-indigo-200 text-xs">Enter your unique access code from your teacher</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Banner -->
+          <div id="student-alert" class="hidden mx-6 mt-5 p-3.5 rounded-xl text-sm flex items-start gap-2.5"></div>
+
+          <div class="p-7">
+
+            <!-- ---- STEP A: Enter Code ---- -->
+            <div id="step-code" class="">
+
+              <!-- What is this? Info box -->
+              <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 mb-6 flex gap-3">
+                <div class="flex-shrink-0 text-indigo-500 mt-0.5">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-indigo-800 text-xs font-semibold mb-0.5">What is an Access Code?</p>
+                  <p class="text-indigo-600 text-xs leading-relaxed">Your teacher generates a unique code for you when setting up your account. It looks like <span class="font-mono font-bold bg-indigo-100 px-1 rounded">FE-A-36</span> or <span class="font-mono font-bold bg-indigo-100 px-1 rounded">SE-B-101</span>. This code contains your academic details — year, division, and roll number.</p>
+                </div>
+              </div>
+
+              <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 text-center">Your Access Code</label>
+                <input type="text" id="student-code" placeholder="e.g. FE-A-36"
+                  class="code-input form-input w-full px-4 py-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-800 outline-none focus:border-indigo-400 focus:bg-white transition-all text-center"
+                  oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '')"
+                  onkeydown="if(event.key==='Enter') verifyCode()">
+                <p class="text-center text-xs text-slate-400 mt-2">Format: YearCode-Division-RollNumber</p>
+              </div>
+
+              <button onclick="verifyCode()" id="btn-verify-code"
+                class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2">
+                <span id="verify-text">Verify Access Code</span>
+                <svg class="spinner w-4.5 h-4.5 hidden" id="spinner-verify" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+                </svg>
+              </button>
+
+              <p class="text-center text-xs text-slate-400 mt-4">Don't have a code? Contact your teacher or class coordinator.</p>
+            </div>
+
+            <!-- ---- STEP B: First-time — Set Password ---- -->
+            <div id="step-setpass" class="hidden">
+
+              <!-- Student identity card (shown after code verified) -->
+              <div id="student-identity-card" class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl p-4 mb-6 text-white">
+                <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Account Found</p>
+                <p id="identity-name" class="font-extrabold text-lg tracking-tight">—</p>
+                <div class="flex gap-3 mt-2 flex-wrap">
+                  <span id="identity-year" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">—</span>
+                  <span id="identity-div" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">—</span>
+                  <span id="identity-sem" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">—</span>
+                </div>
+              </div>
+
+              <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 flex gap-2.5">
+                <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <p class="text-amber-700 text-xs font-medium">First time here! Create a secure password for your account.</p>
+              </div>
+
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Create Password</label>
+                  <div class="relative">
+                    <input type="password" id="new-password" placeholder="Choose a strong password" oninput="checkPasswordStrength(this.value)"
+                      class="form-input w-full pl-4 pr-11 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-indigo-400 focus:bg-white transition-all">
+                    <button type="button" onclick="togglePasswordVisibility('new-password', 'eye-new')"
+                      class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <svg id="eye-new" class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div class="mt-1.5 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="strength-bar-student" class="strength-bar h-full w-0 bg-red-500"></div>
+                  </div>
+                  <p id="strength-text-student" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm Password</label>
+                  <input type="password" id="confirm-password" placeholder="Repeat password"
+                    class="form-input w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-indigo-400 focus:bg-white transition-all"
+                    onkeydown="if(event.key==='Enter') doSetPassword()">
+                </div>
+              </div>
+
+              <button onclick="doSetPassword()" id="btn-set-pass"
+                class="w-full mt-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                <span id="setpass-text">Set Password & Enter Portal</span>
+                <svg class="spinner w-4.5 h-4.5 hidden" id="spinner-setpass" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- ---- STEP C: Returning — Enter Password ---- -->
+            <div id="step-enterpass" class="hidden">
+
+              <!-- Student identity card -->
+              <div id="returning-identity-card" class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl p-4 mb-6 text-white">
+                <p class="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Welcome Back</p>
+                <p id="returning-name" class="font-extrabold text-lg tracking-tight">—</p>
+                <div class="flex gap-3 mt-2 flex-wrap">
+                  <span id="returning-year" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">—</span>
+                  <span id="returning-div" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">—</span>
+                </div>
+              </div>
+
+              <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+                <div class="relative">
+                  <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                  </div>
+                  <input type="password" id="existing-password" placeholder="Enter your password"
+                    class="form-input w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-indigo-400 focus:bg-white transition-all"
+                    onkeydown="if(event.key==='Enter') doStudentLogin()">
+                  <button type="button" onclick="togglePasswordVisibility('existing-password', 'eye-existing')"
+                    class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <svg id="eye-existing" class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <button onclick="doStudentLogin()" id="btn-student-login"
+                class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                <span id="student-login-text">Enter My Portal</span>
+                <svg class="spinner w-4.5 h-4.5 hidden" id="spinner-student-login" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+                </svg>
+              </button>
+
+              <!-- Use different code -->
+              <button onclick="resetStudentToCode()" class="w-full mt-3 py-2.5 text-sm text-indigo-600 hover:text-indigo-800 font-semibold text-center transition-colors">
+                Use a different access code
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step indicator -->
+        <div id="student-step-indicator" class="flex items-center justify-center gap-2 mt-5">
+          <div class="step-dot done w-2 h-2 rounded-full"></div>
+          <div id="ssi-2" class="step-dot active w-6 h-2 rounded-full"></div>
+          <div id="ssi-3" class="step-dot w-2 h-2 bg-white/25 rounded-full"></div>
+        </div>
+      </div>
+
+      <!-- ===========================
+           MODAL: FORGOT PASSWORD (TEACHER)
+      ============================ -->
+      <div id="modal-forgot-password" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden slide-in">
+          <div class="bg-[#1e3a5f] px-6 py-4 flex items-center justify-between text-white">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/30 flex items-center justify-center text-blue-200">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                </svg>
+              </div>
+              <h3 class="font-bold text-base">Reset Teacher Password</h3>
+            </div>
+            <button onclick="closeForgotPasswordModal()" class="text-blue-200 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+            <div id="forgot-alert" class="hidden p-3 rounded-xl text-xs flex items-start gap-2"></div>
+
+            <p class="text-xs text-slate-500">
+              Enter your registered college email and choose a new secure password.
+            </p>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Registered Email</label>
+              <input type="email" id="forgot-email" placeholder="prof@college.edu"
+                class="form-input w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">New Password</label>
+              <input type="password" id="forgot-new-password" placeholder="Min 6 characters"
+                class="form-input w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Confirm New Password</label>
+              <input type="password" id="forgot-confirm-password" placeholder="Repeat new password"
+                class="form-input w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm outline-none focus:border-blue-400 focus:bg-white transition-all">
+            </div>
+
+            <div class="flex gap-2 pt-2">
+              <button onclick="closeForgotPasswordModal()" type="button"
+                class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold text-xs hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              <button onclick="submitForgotPassword()" id="btn-forgot-submit" type="button"
+                class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-1.5">
+                <span id="forgot-submit-text">Update Password</span>
+                <svg class="spinner hidden" id="spinner-forgot" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25"/>
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" class="opacity-75" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="relative z-10 text-center py-5 text-blue-300/60 text-xs">
+    College Study Portal &mdash; Academic Year 2026–27 &bull; Final Year Engineering Project
+  </footer>
+
+  <script>
+    // ========= STATE =========
+    let selectedRole = null;
+    let verifiedCode = null;
+    let studentInfo = null;
+    const selectedSubjects = new Set();
+
+    // Subject presets
+    const PRESET_SUBJECTS = [
+      'Data Structures', 'Database Systems', 'Computer Networks',
+      'Mathematics', 'Physics', 'Chemistry', 'Electronics',
+      'Operating Systems', 'English', 'Algorithms'
+    ];
+
+    // ========= ROLE SELECTION =========
+    function selectRole(role) {
+      selectedRole = role;
+      // Reset both cards
+      ['teacher', 'student'].forEach(r => {
+        document.getElementById(`role-${r}`).classList.remove('selected');
+        document.getElementById(`tick-${r}`).classList.add('hidden');
+      });
+      document.getElementById(`role-${role}`).classList.add('selected');
+      document.getElementById(`tick-${role}`).classList.remove('hidden');
+
+      const btn = document.getElementById('btn-proceed');
+      const txt = document.getElementById('btn-proceed-text');
+      const arrow = document.getElementById('btn-arrow');
+      btn.disabled = false;
+      btn.classList.remove('disabled:bg-slate-200', 'disabled:text-slate-400', 'disabled:cursor-not-allowed');
+      txt.textContent = role === 'teacher' ? 'Continue as Teacher →' : 'Continue as Student →';
+      arrow.classList.remove('hidden');
+    }
+
+    function proceedWithRole() {
+      if (!selectedRole) return;
+      transitionTo(`screen-${selectedRole}`, 'screen-role');
+      if (selectedRole === 'teacher') initSubjectChips();
+    }
+
+    // ========= NAVIGATION =========
+    function transitionTo(showId, hideId) {
+      const hide = document.getElementById(hideId);
+      const show = document.getElementById(showId);
+      hide.classList.add('slide-out');
+      setTimeout(() => {
+        hide.classList.add('hidden');
+        hide.classList.remove('slide-out');
+        show.classList.remove('hidden');
+        show.classList.add('slide-in');
+        setTimeout(() => show.classList.remove('slide-in'), 400);
+      }, 200);
+    }
+
+    function goBack(from) {
+      transitionTo('screen-role', `screen-${from}`);
+      selectedRole = null;
+      document.getElementById('btn-proceed').disabled = true;
+      document.getElementById('btn-proceed-text').textContent = 'Select a role to continue';
+      document.getElementById('btn-arrow').classList.add('hidden');
+      ['teacher', 'student'].forEach(r => {
+        document.getElementById(`role-${r}`).classList.remove('selected');
+        document.getElementById(`tick-${r}`).classList.add('hidden');
+      });
+    }
+
+    // ========= TEACHER TAB TOGGLE =========
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('teacher-login-form').classList.toggle('hidden', !isLogin);
+      document.getElementById('teacher-register-form').classList.toggle('hidden', isLogin);
+      document.getElementById('tab-login').className = isLogin
+        ? 'flex-1 py-3.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all'
+        : 'flex-1 py-3.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-600 transition-all';
+      document.getElementById('tab-register').className = !isLogin
+        ? 'flex-1 py-3.5 text-sm font-bold text-blue-600 border-b-2 border-blue-600 transition-all'
+        : 'flex-1 py-3.5 text-sm font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-600 transition-all';
+      clearAlert('teacher');
+    }
+
+    // ========= SUBJECT CHIPS =========
+    function initSubjectChips() {
+      const container = document.getElementById('subject-chips');
+      if (container.childElementCount > 0) return;
+      PRESET_SUBJECTS.forEach(s => {
+        container.appendChild(makeChip(s));
+      });
+    }
+
+    function makeChip(subject) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = subject;
+      chip.dataset.subject = subject;
+      chip.className = 'chip px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-slate-100 text-slate-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all';
+      chip.onclick = () => toggleChip(chip, subject);
+      return chip;
+    }
+
+    function toggleChip(chip, subject) {
+      if (selectedSubjects.has(subject)) {
+        selectedSubjects.delete(subject);
+        chip.className = 'chip px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-200 bg-slate-100 text-slate-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all';
+      } else {
+        selectedSubjects.add(subject);
+        chip.className = 'chip px-3 py-1.5 rounded-full text-xs font-semibold border-2 border-blue-500 bg-blue-50 text-blue-700 transition-all';
+      }
+    }
+
+    function addCustomSubject() {
+      const input = document.getElementById('custom-subject');
+      const val = input.value.trim();
+      if (!val) return;
+      const container = document.getElementById('subject-chips');
+      const chip = makeChip(val);
+      selectedSubjects.add(val);
+      chip.className = 'chip px-3 py-1.5 rounded-full text-xs font-semibold border-2 border-blue-500 bg-blue-50 text-blue-700 transition-all';
+      container.appendChild(chip);
+      input.value = '';
+    }
+
+    // ========= PASSWORD STRENGTH =========
+    function checkPasswordStrength(val) {
+      let score = 0;
+      if (val.length >= 6) score++;
+      if (val.length >= 10) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val)) score++;
+
+      const colors = ['#ef4444', '#f59e0b', '#f59e0b', '#10b981', '#10b981'];
+      const widths = ['20%', '40%', '60%', '80%', '100%'];
+      const labels = ['Too weak', 'Weak', 'Fair', 'Strong', 'Very strong'];
+
+      ['strength-bar', 'strength-bar-student'].forEach(id => {
+        const bar = document.getElementById(id);
+        if (bar) { bar.style.width = widths[score - 1] || '0%'; bar.style.backgroundColor = colors[score - 1] || '#ef4444'; }
+      });
+      ['strength-text', 'strength-text-student'].forEach(id => {
+        const txt = document.getElementById(id);
+        if (txt) txt.textContent = val ? labels[score - 1] || '' : '';
+      });
+    }
+
+    // ========= ALERTS =========
+    function showAlert(side, type, msg) {
+      const el = document.getElementById(`${side}-alert`);
+      const colors = type === 'error'
+        ? 'bg-red-50 border border-red-200 text-red-700'
+        : 'bg-green-50 border border-green-200 text-green-700';
+      const icon = type === 'error'
+        ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'
+        : '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+      el.className = `flex items-start gap-2.5 mx-6 mt-5 p-3.5 rounded-xl text-sm ${colors}`;
+      el.innerHTML = icon + `<span>${msg}</span>`;
+      el.classList.remove('hidden');
+    }
+
+    function clearAlert(side) {
+      document.getElementById(`${side}-alert`).classList.add('hidden');
+    }
+
+    // ========= LOADING STATES =========
+    function setLoading(btnId, spinnerId, textId, loading, loadingText, defaultText) {
+      document.getElementById(btnId).disabled = loading;
+      document.getElementById(spinnerId).classList.toggle('hidden', !loading);
+      document.getElementById(textId).textContent = loading ? loadingText : defaultText;
+    }
+
+    // ========= PASSWORD VISIBILITY =========
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      const isText = input.type === 'text';
+      input.type = isText ? 'password' : 'text';
+      icon.innerHTML = isText
+        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'
+        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>';
+    }
+
+    // ========= FORGOT PASSWORD MODAL (TEACHER) =========
+    function openForgotPasswordModal() {
+      const emailVal = document.getElementById('login-email').value.trim();
+      if (emailVal) {
+        document.getElementById('forgot-email').value = emailVal;
+      }
+      document.getElementById('forgot-alert').classList.add('hidden');
+      document.getElementById('forgot-new-password').value = '';
+      document.getElementById('forgot-confirm-password').value = '';
+      document.getElementById('modal-forgot-password').classList.remove('hidden');
+    }
+
+    function closeForgotPasswordModal() {
+      document.getElementById('modal-forgot-password').classList.add('hidden');
+    }
+
+    async function submitForgotPassword() {
+      const alertBox = document.getElementById('forgot-alert');
+      alertBox.classList.add('hidden');
+
+      const email = document.getElementById('forgot-email').value.trim();
+      const newPassword = document.getElementById('forgot-new-password').value;
+      const confirmPassword = document.getElementById('forgot-confirm-password').value;
+
+      if (!email || !newPassword) {
+        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+        alertBox.innerHTML = '<span>Please enter your email and a new password.</span>';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+        alertBox.innerHTML = '<span>Passwords do not match.</span>';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+
+      setLoading('btn-forgot-submit', 'spinner-forgot', 'forgot-submit-text', true, 'Updating...', 'Update Password');
+
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ email, newPassword, confirmPassword })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          closeForgotPasswordModal();
+          showToast('success', 'Password reset successfully! Please sign in with your new password.');
+          document.getElementById('login-email').value = email;
+          document.getElementById('login-password').value = '';
+          clearAlert('teacher');
+        } else {
+          alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+          alertBox.innerHTML = `<span>${data.error || 'Password reset failed.'}</span>`;
+          alertBox.classList.remove('hidden');
+        }
+      } catch (e) {
+        alertBox.className = 'p-3 rounded-xl text-xs flex items-start gap-2 bg-red-50 border border-red-200 text-red-700';
+        alertBox.innerHTML = '<span>Network error. Please try again.</span>';
+        alertBox.classList.remove('hidden');
+      } finally {
+        setLoading('btn-forgot-submit', 'spinner-forgot', 'forgot-submit-text', false, '', 'Update Password');
+      }
+    }
+
+    // ========= TEACHER ACTIONS =========
+    async function doTeacherLogin() {
+      clearAlert('teacher');
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { showAlert('teacher', 'error', 'Please enter both email and password.'); return; }
+
+      setLoading('btn-teacher-login', 'spinner-teacher-login', 'teacher-login-text', true, 'Signing in...', 'Sign In');
+      try {
+        const res = await fetch('/api/auth/teacher/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('success', `Welcome back, ${data.user.name}! Redirecting...`);
+          setTimeout(() => window.location.href = '/teacher/dashboard', 800);
+        } else {
+          showAlert('teacher', 'error', data.error || 'Invalid credentials. Please try again.');
+        }
+      } catch (e) {
+        showAlert('teacher', 'error', 'Network error. Please check your connection.');
+      } finally {
+        setLoading('btn-teacher-login', 'spinner-teacher-login', 'teacher-login-text', false, '', 'Sign In');
+      }
+    }
+
+    async function doTeacherRegister() {
+      clearAlert('teacher');
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm').value;
+      if (!name || !email || !password) { showAlert('teacher', 'error', 'Please fill in all required fields.'); return; }
+      if (password !== confirm) { showAlert('teacher', 'error', 'Passwords do not match.'); return; }
+      if (password.length < 6) { showAlert('teacher', 'error', 'Password must be at least 6 characters.'); return; }
+
+      setLoading('btn-register', 'spinner-register', 'register-text', true, 'Creating account...', 'Create Teacher Account');
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ name, email, password, subjects: [...selectedSubjects] })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('success', 'Account created! Signing you in...');
+          // Auto-login after register
+          const loginRes = await fetch('/api/auth/teacher/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email, password })
+          });
+          const loginData = await loginRes.json();
+          if (loginData.success) {
+            setTimeout(() => window.location.href = '/teacher/dashboard', 800);
+          }
+        } else {
+          showAlert('teacher', 'error', data.error || 'Registration failed. Please try again.');
+        }
+      } catch (e) {
+        showAlert('teacher', 'error', 'Network error. Please check your connection.');
+      } finally {
+        setLoading('btn-register', 'spinner-register', 'register-text', false, '', 'Create Teacher Account');
+      }
+    }
+
+    // ========= STUDENT ACTIONS =========
+    const YEAR_LABELS = { 1: 'First Year (FE)', 2: 'Second Year (SE)', 3: 'Third Year (TE)', 4: 'Final Year (BE)' };
+
+    function showStudentStep(step) {
+      ['step-code', 'step-setpass', 'step-enterpass'].forEach(s =>
+        document.getElementById(s).classList.add('hidden')
+      );
+      document.getElementById(`step-${step}`).classList.remove('hidden');
+      clearAlert('student');
+
+      // Update step indicator
+      const ssi2 = document.getElementById('ssi-2');
+      const ssi3 = document.getElementById('ssi-3');
+      if (step === 'code') {
+        ssi2.className = 'step-dot active w-6 h-2 rounded-full bg-indigo-400';
+        ssi3.className = 'step-dot w-2 h-2 bg-white/25 rounded-full';
+      } else {
+        ssi2.className = 'step-dot done w-2 h-2 rounded-full bg-indigo-400';
+        ssi3.className = 'step-dot active w-6 h-2 rounded-full bg-indigo-400';
+      }
+    }
+
+    async function verifyCode() {
+      clearAlert('student');
+      const code = document.getElementById('student-code').value.trim();
+      if (!code) { showAlert('student', 'error', 'Please enter your access code.'); return; }
+
+      setLoading('btn-verify-code', 'spinner-verify', 'verify-text', true, 'Verifying...', 'Verify Access Code');
+      try {
+        const res = await fetch('/api/auth/student/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+
+        if (res.status === 401) {
+          showAlert('student', 'error', '❌ Invalid access code. Please check with your teacher.');
+          return;
+        }
+
+        verifiedCode = code;
+        studentInfo = data.student || data.user;
+
+        if (data.firstLogin) {
+          // First time — show password setup
+          const info = data.student;
+          document.getElementById('identity-name').textContent = info.name;
+          document.getElementById('identity-year').textContent = YEAR_LABELS[info.year] || `Year ${info.year}`;
+          document.getElementById('identity-div').textContent = `Division ${info.division}`;
+          document.getElementById('identity-sem').textContent = `Semester ${info.semester}`;
+          showStudentStep('setpass');
+        } else if (data.success && data.user) {
+          // Already logged in (session exists)
+          showToast('success', `Welcome, ${data.user.name}! Redirecting...`);
+          setTimeout(() => window.location.href = '/student/dashboard', 700);
+        } else {
+          // Returning user, prompt for password
+          const info = data.student || {};
+          document.getElementById('returning-name').textContent = info.name || 'Student';
+          document.getElementById('returning-year').textContent = YEAR_LABELS[info.year] || `Year ${info.year || ''}`;
+          document.getElementById('returning-div').textContent = `Division ${info.division || ''}`;
+          showStudentStep('enterpass');
+        }
+      } catch (e) {
+        showAlert('student', 'error', 'Network error. Please check your connection.');
+      } finally {
+        setLoading('btn-verify-code', 'spinner-verify', 'verify-text', false, '', 'Verify Access Code');
+      }
+    }
+
+    async function doSetPassword() {
+      clearAlert('student');
+      const password = document.getElementById('new-password').value;
+      const confirm = document.getElementById('confirm-password').value;
+      if (!password || password.length < 4) { showAlert('student', 'error', 'Password must be at least 4 characters.'); return; }
+      if (password !== confirm) { showAlert('student', 'error', 'Passwords do not match.'); return; }
+
+      setLoading('btn-set-pass', 'spinner-setpass', 'setpass-text', true, 'Setting up your account...', 'Set Password & Enter Portal');
+      try {
+        const res = await fetch('/api/auth/student/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ code: verifiedCode, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('success', `Account secured! Welcome, ${data.user.name}!`);
+          setTimeout(() => window.location.href = '/student/dashboard', 800);
+        } else {
+          showAlert('student', 'error', data.error || 'Could not set password. Please try again.');
+        }
+      } catch (e) {
+        showAlert('student', 'error', 'Network error. Please check your connection.');
+      } finally {
+        setLoading('btn-set-pass', 'spinner-setpass', 'setpass-text', false, '', 'Set Password & Enter Portal');
+      }
+    }
+
+    async function doStudentLogin() {
+      clearAlert('student');
+      const password = document.getElementById('existing-password').value;
+      if (!password) { showAlert('student', 'error', 'Please enter your password.'); return; }
+
+      setLoading('btn-student-login', 'spinner-student-login', 'student-login-text', true, 'Signing in...', 'Enter My Portal');
+      try {
+        const res = await fetch('/api/auth/student/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ code: verifiedCode, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('success', `Welcome back, ${data.user.name}!`);
+          setTimeout(() => window.location.href = '/student/dashboard', 700);
+        } else {
+          showAlert('student', 'error', data.error || 'Incorrect password. Please try again.');
+        }
+      } catch (e) {
+        showAlert('student', 'error', 'Network error. Please check your connection.');
+      } finally {
+        setLoading('btn-student-login', 'spinner-student-login', 'student-login-text', false, '', 'Enter My Portal');
+      }
+    }
+
+    function resetStudentToCode() {
+      verifiedCode = null;
+      studentInfo = null;
+      document.getElementById('student-code').value = '';
+      document.getElementById('existing-password').value = '';
+      showStudentStep('code');
+    }
+
+    // ========= TOAST SYSTEM =========
+    function showToast(type, message) {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        success: 'bg-green-600 text-white',
+        error: 'bg-red-600 text-white',
+        info: 'bg-blue-600 text-white'
+      };
+      const icons = {
+        success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+        error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+        info: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg ${colors[type]} toast-enter`;
+      toast.innerHTML = `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[type]}</svg><span class="text-sm font-medium flex-1">${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('toast-enter');
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // ========= CHECK EXISTING SESSION =========
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user?.role === 'teacher') window.location.href = '/teacher/dashboard';
+          else if (data.user?.role === 'student') window.location.href = '/student/dashboard';
+        }
+      } catch {}
+    })();
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

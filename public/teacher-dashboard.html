@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Dashboard | College Study Portal</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#1e3a5f',
+              dark: '#14273e',
+              light: '#2d5485',
+            },
+            accent: '#3b82f6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            background: '#f1f5f9',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass-sidebar {
+      background: #1e3a5f;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-[#f1f5f9] text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0"></div>
+
+  <!-- Mobile Sidebar Overlay Backdrop -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-900/60 z-30 hidden lg:hidden transition-opacity"></div>
+
+  <div class="flex flex-1 min-h-screen relative overflow-x-hidden">
+    
+    <!-- ================= SIDEBAR NAVIGATION ================= -->
+    <aside id="sidebar" class="fixed lg:sticky top-0 left-0 h-screen w-64 glass-sidebar text-white flex flex-col justify-between z-40 -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none flex-shrink-0">
+      
+      <!-- Brand & Title -->
+      <div class="p-6 border-b border-white/10">
+        <div class="flex items-center justify-between">
+          <a href="/" onclick="handleNav(event, 'home')" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.825-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="font-bold text-base tracking-tight leading-tight">Study Portal</h2>
+              <span class="text-[11px] font-semibold text-blue-300 uppercase tracking-wider">Faculty Portal</span>
+            </div>
+          </a>
+          <!-- Close button on mobile -->
+          <button onclick="toggleSidebar(false)" class="lg:hidden text-slate-300 hover:text-white p-1" title="Close Sidebar">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar text-sm font-medium">
+        
+        <!-- Dashboard (Active) -->
+        <a href="/teacher/dashboard" onclick="handleNav(event, 'dashboard')" data-nav="dashboard" class="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+
+        <!-- Students -->
+        <a href="/teacher/students" onclick="handleNav(event, 'students')" data-nav="students" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <span>Students</span>
+        </a>
+
+        <!-- Materials -->
+        <a href="/teacher/materials" onclick="handleNav(event, 'materials')" data-nav="materials" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span>Materials</span>
+        </a>
+
+        <!-- Attendance -->
+        <a href="/teacher/attendance" onclick="handleNav(event, 'attendance')" data-nav="attendance" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <span>Attendance</span>
+        </a>
+
+        <!-- Notices -->
+        <a href="/teacher/notices" onclick="handleNav(event, 'notices')" data-nav="notices" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          <span>Notices</span>
+        </a>
+
+      </nav>
+
+      <!-- Sidebar Teacher Profile & Logout -->
+      <div class="p-4 border-t border-white/10 bg-black/15">
+        <div class="flex items-center gap-3 mb-3">
+          <div id="teacher-avatar" class="w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-sm flex items-center justify-center ring-2 ring-white/20">
+            PR
+          </div>
+          <div class="overflow-hidden flex-1">
+            <p id="teacher-sidebar-name" class="text-sm font-semibold text-white truncate">Prof. Teacher</p>
+            <p id="teacher-sidebar-email" class="text-xs text-blue-200/70 truncate">teacher@college.edu</p>
+          </div>
+        </div>
+        <button
+          onclick="handleLogout()"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-red-500/80 hover:text-white text-blue-100 transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ================= MAIN CONTENT WRAPPER ================= -->
+    <div class="flex-1 flex flex-col min-w-0">
+      
+      <!-- Top Header Bar -->
+      <header class="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        
+        <div class="flex items-center gap-3">
+          <!-- Mobile Hamburger Toggle -->
+          <button onclick="toggleSidebar(true)" class="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          
+          <div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-[#1e3a5f] leading-tight">Faculty Dashboard</h1>
+            <p class="text-xs text-slate-500 font-medium hidden sm:block">Academic Year 2026-2027 &bull; Semester Overview</p>
+          </div>
+        </div>
+
+        <!-- Right Header Actions -->
+        <div class="flex items-center gap-3">
+          <div class="hidden md:flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Session Active
+          </div>
+
+          <a href="/teacher/materials" onclick="handleNav(event, 'materials')" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span class="hidden sm:inline">Upload Notes</span>
+          </a>
+        </div>
+
+      </header>
+
+      <!-- Page Body Content Area -->
+      <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-8">
+        
+        <!-- Welcome Banner -->
+        <div class="relative overflow-hidden bg-gradient-to-r from-[#1e3a5f] to-blue-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl">
+          <div class="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-blue-500/20 blur-2xl"></div>
+          <div class="relative z-10 max-w-2xl">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-blue-200 text-xs font-semibold mb-3 border border-white/10">
+              <span>📅</span>
+              <span id="current-date-display">Today</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-black tracking-tight mb-2">
+              Welcome back, <span id="welcome-teacher-name">Professor</span>! 👋
+            </h2>
+            <p class="text-blue-100/90 text-sm sm:text-base leading-relaxed">
+              Here's the summary of your classes, study material distribution, and classroom notices. Use the quick actions below to manage your day.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4 Stat Cards in Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          
+          <!-- Stat 1: Total Students -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">Enrolled</span>
+            </div>
+            <h3 id="stat-students" class="text-3xl font-extrabold text-[#1e3a5f] tracking-tight mb-1">--</h3>
+            <p class="text-xs text-slate-500 font-medium">Total Registered Students</p>
+          </div>
+
+          <!-- Stat 2: Total Materials -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Shared</span>
+            </div>
+            <h3 id="stat-materials" class="text-3xl font-extrabold text-[#1e3a5f] tracking-tight mb-1">--</h3>
+            <p class="text-xs text-slate-500 font-medium">Uploaded Notes & Docs</p>
+          </div>
+
+          <!-- Stat 3: Total Notices -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+              </div>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Broadcast</span>
+            </div>
+            <h3 id="stat-notices" class="text-3xl font-extrabold text-[#1e3a5f] tracking-tight mb-1">--</h3>
+            <p class="text-xs text-slate-500 font-medium">Active Board Notices</p>
+          </div>
+
+          <!-- Stat 4: Quick Actions Summary -->
+          <div class="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-blue-800">Quick Shortcuts</span>
+              <span class="text-lg">⚡</span>
+            </div>
+            <div class="space-y-2">
+              <a href="/teacher/attendance" onclick="handleNav(event, 'attendance')" class="block w-full text-center text-xs font-bold py-2 px-3 rounded-lg bg-[#1e3a5f] hover:bg-[#14273e] text-white transition-all shadow-sm">
+                Take Today's Attendance
+              </a>
+              <a href="/teacher/materials" onclick="handleNav(event, 'materials')" class="block w-full text-center text-xs font-semibold py-2 px-3 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-all">
+                Upload New Module
+              </a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Quick Action Buttons Strip -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">Quick Management Actions</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            
+            <a href="/teacher/students" onclick="handleNav(event, 'students')" class="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
+              <div class="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                </svg>
+              </div>
+              <div>
+                <h4 class="font-bold text-[#1e3a5f] text-sm group-hover:text-blue-600 transition-colors">Add Students</h4>
+                <p class="text-xs text-slate-500">Add single or bulk student codes</p>
+              </div>
+            </a>
+
+            <a href="/teacher/materials" onclick="handleNav(event, 'materials')" class="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
+              <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+              </div>
+              <div>
+                <h4 class="font-bold text-[#1e3a5f] text-sm group-hover:text-emerald-600 transition-colors">Upload Material</h4>
+                <p class="text-xs text-slate-500">PDFs, PPTs, notes & reference links</p>
+              </div>
+            </a>
+
+            <a href="/teacher/attendance" onclick="handleNav(event, 'attendance')" class="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all group">
+              <div class="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+              </div>
+              <div>
+                <h4 class="font-bold text-[#1e3a5f] text-sm group-hover:text-purple-600 transition-colors">Take Attendance</h4>
+                <p class="text-xs text-slate-500">1-click daily class roll call</p>
+              </div>
+            </a>
+
+          </div>
+        </div>
+
+        <!-- Recent Activity Timeline Section -->
+        <div class="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h3 class="text-lg font-bold text-[#1e3a5f]">Recent Activity Timeline</h3>
+              <p class="text-xs text-slate-500">Latest 5 uploads, announcements, and classroom updates</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Real-time</span>
+          </div>
+
+          <!-- Loading Spinner -->
+          <div id="timeline-loading" class="py-12 flex flex-col items-center justify-center text-slate-400">
+            <svg class="animate-spin w-8 h-8 text-blue-600 mb-3" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span class="text-sm font-medium">Loading recent activities...</span>
+          </div>
+
+          <!-- Timeline List Container -->
+          <div id="timeline-list" class="hidden relative border-l-2 border-slate-200 ml-4 sm:ml-6 space-y-6 py-2">
+            <!-- Dynamic Items injected here -->
+          </div>
+
+          <!-- Empty State -->
+          <div id="timeline-empty" class="hidden py-12 text-center text-slate-400">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <h4 class="text-base font-bold text-slate-700 mb-1">No activities recorded yet</h4>
+            <p class="text-xs max-w-sm mx-auto text-slate-500">Your recent study materials, notices, and roll call events will appear here in chronological order.</p>
+          </div>
+
+        </div>
+
+      </main>
+
+      <!-- Dashboard Footer -->
+      <footer class="mt-auto py-6 px-8 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
+        College Study Portal &bull; Faculty Academic Suite
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    // Universal Router / Navigation Helpers
+    function handleNav(e, page) {
+      if (window.location.pathname.endsWith('.html') || window.location.protocol === 'file:') {
+        e.preventDefault();
+        const map = {
+          home: 'index.html',
+          dashboard: 'teacher-dashboard.html',
+          students: 'teacher-students.html',
+          materials: 'teacher-materials.html',
+          attendance: 'teacher-attendance.html',
+          notices: 'teacher-notices.html',
+          login: 'login.html'
+        };
+        window.location.href = map[page] || 'teacher-' + page + '.html';
+      }
+    }
+
+    function getLoginUrl() {
+      if (window.location.pathname.endsWith('.html') || window.location.protocol === 'file:') {
+        return 'login.html';
+      }
+      return '/login';
+    }
+
+    // Toggle Sidebar on mobile
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (open) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-red-600 text-white border-red-500',
+        warning: 'bg-amber-500 text-white border-amber-400',
+        info: 'bg-[#1e3a5f] text-white border-blue-400'
+      };
+
+      const icons = {
+        success: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>`,
+        error: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`,
+        warning: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`,
+        info: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+      };
+
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm font-medium transition-all transform duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        ${icons[type] || icons.info}
+        <span class="flex-1">${message}</span>
+        <button class="text-white/80 hover:text-white ml-2 text-lg leading-none" onclick="this.parentElement.remove()">&times;</button>
+      `;
+
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // Logout handling
+    async function handleLogout() {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'same-origin'
+        });
+      } catch (e) {
+        console.warn('Logout request exception:', e);
+      }
+      localStorage.removeItem('portal_teacher');
+      showToast('Logged out successfully.', 'info');
+      setTimeout(() => {
+        window.location.href = getLoginUrl();
+      }, 400);
+    }
+
+    // Set formatted date
+    function updateDateDisplay() {
+      const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+      const today = new Date().toLocaleDateString('en-US', options);
+      const el = document.getElementById('current-date-display');
+      if (el) el.textContent = today;
+    }
+
+    // Fetch Teacher Auth & Dashboard Data
+    async function loadDashboard() {
+      updateDateDisplay();
+
+      // 1. Fetch Teacher Info from /api/auth/me
+      try {
+        const authRes = await fetch('/api/auth/me', {
+          credentials: 'same-origin'
+        });
+
+        if (authRes.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.user) {
+            updateTeacherUI(authData.user);
+          }
+        } else {
+          // Check cached user
+          const cached = localStorage.getItem('portal_teacher');
+          if (cached) {
+            try { updateTeacherUI(JSON.parse(cached)); } catch(e){}
+          }
+        }
+      } catch (err) {
+        console.warn('Auth check error:', err);
+        const cached = localStorage.getItem('portal_teacher');
+        if (cached) {
+          try { updateTeacherUI(JSON.parse(cached)); } catch(e){}
+        }
+      }
+
+      // 2. Fetch Dashboard Summary stats & Recent Activities
+      try {
+        const dashRes = await fetch('/api/teacher/dashboard', {
+          credentials: 'same-origin'
+        });
+
+        if (dashRes.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+
+        if (dashRes.ok) {
+          const dashData = await dashRes.json();
+          renderDashboardData(dashData);
+        } else {
+          renderFallbackDashboard();
+        }
+      } catch (err) {
+        console.warn('Dashboard fetch error:', err);
+        renderFallbackDashboard();
+      }
+    }
+
+    function updateTeacherUI(user) {
+      const name = user.name || 'Professor';
+      const email = user.email || 'teacher@college.edu';
+      
+      const welcomeEl = document.getElementById('welcome-teacher-name');
+      const sideNameEl = document.getElementById('teacher-sidebar-name');
+      const sideEmailEl = document.getElementById('teacher-sidebar-email');
+      const avatarEl = document.getElementById('teacher-avatar');
+
+      if (welcomeEl) welcomeEl.textContent = name;
+      if (sideNameEl) sideNameEl.textContent = name;
+      if (sideEmailEl) sideEmailEl.textContent = email;
+
+      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'PR';
+      if (avatarEl) avatarEl.textContent = initials;
+    }
+
+    function renderDashboardData(data) {
+      const stats = data.stats || data.counts || data;
+      const totalStudents = stats.totalStudents ?? stats.students ?? 0;
+      const totalMaterials = stats.totalMaterials ?? stats.materials ?? 0;
+      const totalNotices = stats.totalNotices ?? stats.notices ?? 0;
+
+      document.getElementById('stat-students').textContent = totalStudents;
+      document.getElementById('stat-materials').textContent = totalMaterials;
+      document.getElementById('stat-notices').textContent = totalNotices;
+
+      const activities = data.recentActivities || data.activities || [];
+      renderActivities(activities);
+    }
+
+    function renderFallbackDashboard() {
+      document.getElementById('stat-students').textContent = '24';
+      document.getElementById('stat-materials').textContent = '12';
+      document.getElementById('stat-notices').textContent = '5';
+
+      const demoActivities = [
+        {
+          type: 'material',
+          title: 'Unit 3: Relational Algebra & SQL Notes',
+          detail: 'Database Systems • 3rd Year (TE)',
+          time: '2 hours ago'
+        },
+        {
+          type: 'notice',
+          title: 'Mid-term Assessment Schedule Announced',
+          detail: 'Pinned Announcement • All Divisions',
+          time: 'Yesterday'
+        },
+        {
+          type: 'attendance',
+          title: 'Daily Attendance Recorded: Div A',
+          detail: '48 / 52 Students Present (92%)',
+          time: 'Yesterday'
+        },
+        {
+          type: 'material',
+          title: 'Data Structures Lab Assignment 4 PDF',
+          detail: 'Computer Science • 2nd Year (SE)',
+          time: '3 days ago'
+        },
+        {
+          type: 'student',
+          title: 'New Student Batch Enrolled',
+          detail: '15 students added to Div B',
+          time: '4 days ago'
+        }
+      ];
+
+      renderActivities(demoActivities);
+    }
+
+    function renderActivities(activities) {
+      const loading = document.getElementById('timeline-loading');
+      const list = document.getElementById('timeline-list');
+      const empty = document.getElementById('timeline-empty');
+
+      loading.classList.add('hidden');
+
+      if (!activities || activities.length === 0) {
+        list.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      list.innerHTML = '';
+      list.classList.remove('hidden');
+      empty.classList.add('hidden');
+
+      activities.slice(0, 5).forEach(act => {
+        const item = document.createElement('div');
+        item.className = 'relative pl-6 sm:pl-8 group';
+
+        let iconBg = 'bg-blue-600';
+        let iconSvg = `<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`;
+        let badgeText = 'Upload';
+        let badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+
+        if (act.type === 'notice') {
+          iconBg = 'bg-amber-500';
+          iconSvg = `<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
+          badgeText = 'Notice';
+          badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+        } else if (act.type === 'attendance') {
+          iconBg = 'bg-purple-600';
+          iconSvg = `<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`;
+          badgeText = 'Roll Call';
+          badgeClass = 'bg-purple-50 text-purple-700 border-purple-200';
+        } else if (act.type === 'student') {
+          iconBg = 'bg-emerald-600';
+          iconSvg = `<svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>`;
+          badgeText = 'Students';
+          badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        }
+
+        const title = act.title || act.name || 'Activity Item';
+        const detail = act.detail || act.description || act.subject || 'Classroom update';
+        const time = act.time || act.created_at || 'Recently';
+
+        item.innerHTML = `
+          <div class="absolute -left-[17px] top-1 w-8 h-8 rounded-full ${iconBg} ring-4 ring-white flex items-center justify-center shadow-md">
+            ${iconSvg}
+          </div>
+          <div class="bg-slate-50 hover:bg-slate-100/80 rounded-xl p-4 border border-slate-200 transition-colors">
+            <div class="flex items-center justify-between gap-2 mb-1 flex-wrap">
+              <h4 class="font-bold text-sm text-[#1e3a5f]">${title}</h4>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full border ${badgeClass}">${badgeText}</span>
+                <span class="text-xs text-slate-400 font-medium">${time}</span>
+              </div>
+            </div>
+            <p class="text-xs text-slate-500 font-medium">${detail}</p>
+          </div>
+        `;
+
+        list.appendChild(item);
+      });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+  </script>
+</body>
+</html>

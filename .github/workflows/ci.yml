@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-v2:
+    name: Backend checks + v2 tests (no Oracle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Syntax check
+        run: |
+          node --check server_studyflow_v2.js
+          node --check seed_oracle.js
+          node --check start_prod.js
+          node --check test_studyflow_v2.js
+          node --check run_integration_tests.js
+      - name: Run v2 test suite (mocked Oracle)
+        run: npm run test:v2
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: react-frontend/package-lock.json
+      - run: npm ci
+        working-directory: react-frontend
+      - run: npm run build
+        working-directory: react-frontend

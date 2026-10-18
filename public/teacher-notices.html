@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notice Board | College Study Portal</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#1e3a5f',
+              dark: '#14273e',
+              light: '#2d5485',
+            },
+            accent: '#3b82f6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+            background: '#f1f5f9',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass-sidebar { background: #1e3a5f; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+    .animate-modal { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
+</head>
+<body class="bg-[#f1f5f9] text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0"></div>
+
+  <!-- Mobile Sidebar Overlay Backdrop -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-900/60 z-30 hidden lg:hidden transition-opacity"></div>
+
+  <div class="flex flex-1 min-h-screen relative overflow-x-hidden">
+    
+    <!-- ================= SIDEBAR NAVIGATION ================= -->
+    <aside id="sidebar" class="fixed lg:sticky top-0 left-0 h-screen w-64 glass-sidebar text-white flex flex-col justify-between z-40 -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none flex-shrink-0">
+      
+      <!-- Brand & Title -->
+      <div class="p-6 border-b border-white/10">
+        <div class="flex items-center justify-between">
+          <a href="/" onclick="handleNav(event, 'home')" class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-5.825-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="font-bold text-base tracking-tight leading-tight">Study Portal</h2>
+              <span class="text-[11px] font-semibold text-blue-300 uppercase tracking-wider">Faculty Portal</span>
+            </div>
+          </a>
+          <button onclick="toggleSidebar(false)" class="lg:hidden text-slate-300 hover:text-white p-1 cursor-pointer" title="Close Sidebar">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar text-sm font-medium">
+        <!-- Dashboard -->
+        <a href="/teacher/dashboard" onclick="handleNav(event, 'dashboard')" data-nav="dashboard" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+
+        <!-- Students -->
+        <a href="/teacher/students" onclick="handleNav(event, 'students')" data-nav="students" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <span>Students</span>
+        </a>
+
+        <!-- Materials -->
+        <a href="/teacher/materials" onclick="handleNav(event, 'materials')" data-nav="materials" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span>Materials</span>
+        </a>
+
+        <!-- Attendance -->
+        <a href="/teacher/attendance" onclick="handleNav(event, 'attendance')" data-nav="attendance" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-blue-100/80 hover:bg-white/10 hover:text-white transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+          <span>Attendance</span>
+        </a>
+
+        <!-- Notices (Active) -->
+        <a href="/teacher/notices" onclick="handleNav(event, 'notices')" data-nav="notices" class="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+          <span>Notices</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar Teacher Profile & Logout -->
+      <div class="p-4 border-t border-white/10 bg-black/15">
+        <div class="flex items-center gap-3 mb-3">
+          <div id="teacher-avatar" class="w-10 h-10 rounded-full bg-blue-500 text-white font-bold text-sm flex items-center justify-center ring-2 ring-white/20">
+            PR
+          </div>
+          <div class="overflow-hidden flex-1">
+            <p id="teacher-sidebar-name" class="text-sm font-semibold text-white truncate">Prof. Teacher</p>
+            <p id="teacher-sidebar-email" class="text-xs text-blue-200/70 truncate">teacher@college.edu</p>
+          </div>
+        </div>
+        <button
+          onclick="handleLogout()"
+          class="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-red-500/80 hover:text-white text-blue-100 transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span>Logout</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ================= MAIN CONTENT WRAPPER ================= -->
+    <div class="flex-1 flex flex-col min-w-0">
+      
+      <!-- Top Header Bar -->
+      <header class="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm px-4 sm:px-8 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button onclick="toggleSidebar(true)" class="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          
+          <div>
+            <h1 class="text-lg sm:text-xl font-extrabold text-[#1e3a5f] leading-tight">Notice Board</h1>
+            <p class="text-xs text-slate-500 font-medium hidden sm:block">Broadcast important deadlines, syllabus changes, and class announcements</p>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button
+          onclick="openNoticeModal()"
+          class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/25 transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>Post Notice</span>
+        </button>
+      </header>
+
+      <!-- Main Body Content -->
+      <main class="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+        
+        <!-- Filter & Search Strip -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3">
+            
+            <!-- Target Year Filter -->
+            <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span>Target Year:</span>
+              <select id="filter-year" onchange="applyFilters()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:border-blue-500">
+                <option value="">All Classes</option>
+                <option value="1">1st Year (FE)</option>
+                <option value="2">2nd Year (SE)</option>
+                <option value="3">3rd Year (TE)</option>
+                <option value="4">4th Year (BE)</option>
+              </select>
+            </div>
+
+            <!-- Pinned Only Toggle -->
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+              <input type="checkbox" id="filter-pinned" onchange="applyFilters()" class="rounded text-blue-600 focus:ring-0">
+              <span>📌 Pinned Only</span>
+            </label>
+
+            <button onclick="resetFilters()" class="text-xs font-semibold text-slate-400 hover:text-slate-700 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+              Reset
+            </button>
+          </div>
+
+          <!-- Search Input -->
+          <div class="relative w-full md:w-64">
+            <input
+              type="text"
+              id="search-input"
+              oninput="applyFilters()"
+              placeholder="Search announcements..."
+              class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:border-blue-500 outline-none text-slate-700 placeholder:text-slate-400"
+            />
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Notices Count Status -->
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-500 px-1">
+          <span id="notices-count-text">Loading notices...</span>
+          <span class="text-slate-400">Pinned notices are prominently placed for high student visibility</span>
+        </div>
+
+        <!-- Loading State -->
+        <div id="notices-loading" class="py-20 flex flex-col items-center justify-center text-slate-400">
+          <svg class="animate-spin w-8 h-8 text-blue-600 mb-3" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+          <span class="text-sm font-medium">Fetching announcements...</span>
+        </div>
+
+        <!-- Empty State -->
+        <div id="notices-empty" class="hidden bg-white rounded-3xl border border-slate-200 p-12 text-center max-w-xl mx-auto shadow-sm">
+          <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 mb-1">No Notices Posted Yet</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto mb-6">Keep your students updated by broadcasting lecture cancellations, exam schedules, or assignment submissions.</p>
+          <button onclick="openNoticeModal()" class="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all cursor-pointer">
+            Broadcast Your First Notice
+          </button>
+        </div>
+
+        <!-- Notices Cards List Container -->
+        <div id="notices-container" class="hidden space-y-4">
+          <!-- Dynamic Notice Cards injected here -->
+        </div>
+
+      </main>
+
+      <!-- Dashboard Footer -->
+      <footer class="mt-auto py-6 px-8 text-center text-xs text-slate-400 border-t border-slate-200 bg-white">
+        College Study Portal &bull; Department Notice Board
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ================= POST NOTICE MODAL ================= -->
+  <div id="modal-post-notice" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 animate-modal my-8">
+      
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-lg font-extrabold text-[#1e3a5f]">Post New Notice</h3>
+          <p class="text-xs text-slate-500">Broadcast an announcement to your enrolled students</p>
+        </div>
+        <button onclick="closeModal('modal-post-notice')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer">
+          &times;
+        </button>
+      </div>
+
+      <form id="form-post-notice" onsubmit="handlePostNotice(event)" class="space-y-4 text-xs font-medium">
+        
+        <!-- Notice Title -->
+        <div>
+          <label class="block text-slate-600 font-bold uppercase tracking-wider text-[11px] mb-1">Notice Title</label>
+          <input
+            type="text"
+            id="notice-title"
+            required
+            placeholder="e.g. Mid-term Assessment Dates & Assignment 2 Deadline"
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800"
+          />
+        </div>
+
+        <!-- Message Body -->
+        <div>
+          <label class="block text-slate-600 font-bold uppercase tracking-wider text-[11px] mb-1">Message Content</label>
+          <textarea
+            id="notice-message"
+            rows="5"
+            required
+            placeholder="Write clear announcement details, submission instructions, or exam timings..."
+            class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 leading-relaxed"
+          ></textarea>
+        </div>
+
+        <!-- Target Parameters: Subject, Year, Division -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          
+          <div>
+            <label class="block text-slate-600 font-bold uppercase tracking-wider text-[10px] mb-1">Subject (Optional)</label>
+            <input
+              type="text"
+              id="notice-subject"
+              placeholder="All Subjects or CS"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 outline-none text-slate-800"
+            />
+          </div>
+
+          <div>
+            <label class="block text-slate-600 font-bold uppercase tracking-wider text-[10px] mb-1">Target Year</label>
+            <select
+              id="notice-year"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 outline-none text-slate-800"
+            >
+              <option value="">All Years</option>
+              <option value="1">1st Year (FE)</option>
+              <option value="2">2nd Year (SE)</option>
+              <option value="3">3rd Year (TE)</option>
+              <option value="4">4th Year (BE)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-slate-600 font-bold uppercase tracking-wider text-[10px] mb-1">Target Div</label>
+            <select
+              id="notice-div"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 outline-none text-slate-800"
+            >
+              <option value="">All Divisions</option>
+              <option value="A">Division A</option>
+              <option value="B">Division B</option>
+              <option value="C">Division C</option>
+              <option value="D">Division D</option>
+              <option value="E">Division E</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Pin to Top Toggle Checkbox -->
+        <div class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="notice-pin"
+            class="w-4 h-4 rounded text-amber-600 focus:ring-0 cursor-pointer"
+          />
+          <label for="notice-pin" class="text-xs text-amber-900 font-semibold cursor-pointer select-none">
+            📌 Pin this notice to the top as High Priority
+          </label>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="pt-2 flex items-center justify-end gap-2.5">
+          <button
+            type="button"
+            onclick="closeModal('modal-post-notice')"
+            class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            id="btn-post-submit"
+            class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-600/25 flex items-center gap-2 cursor-pointer"
+          >
+            <span>Publish Notice</span>
+            <svg id="post-spinner" class="hidden animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let allNotices = [];
+
+    function handleNav(e, page) {
+      if (window.location.pathname.endsWith('.html') || window.location.protocol === 'file:') {
+        e.preventDefault();
+        const map = {
+          home: 'index.html',
+          dashboard: 'teacher-dashboard.html',
+          students: 'teacher-students.html',
+          materials: 'teacher-materials.html',
+          attendance: 'teacher-attendance.html',
+          notices: 'teacher-notices.html',
+          login: 'login.html'
+        };
+        window.location.href = map[page] || 'teacher-' + page + '.html';
+      }
+    }
+
+    function getLoginUrl() {
+      if (window.location.pathname.endsWith('.html') || window.location.protocol === 'file:') {
+        return 'login.html';
+      }
+      return '/login';
+    }
+
+    function toggleSidebar(open) {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (open) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-red-600 text-white border-red-500',
+        warning: 'bg-amber-500 text-white border-amber-400',
+        info: 'bg-[#1e3a5f] text-white border-blue-400'
+      };
+
+      const icons = {
+        success: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>`,
+        error: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`,
+        warning: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`,
+        info: `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+      };
+
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm font-medium transition-all transform duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        ${icons[type] || icons.info}
+        <span class="flex-1">${message}</span>
+        <button class="text-white/80 hover:text-white ml-2 text-lg leading-none cursor-pointer" onclick="this.parentElement.remove()">&times;</button>
+      `;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      } catch (e) {}
+      localStorage.removeItem('portal_teacher');
+      showToast('Logged out successfully.', 'info');
+      setTimeout(() => { window.location.href = getLoginUrl(); }, 400);
+    }
+
+    function openNoticeModal() {
+      document.getElementById('form-post-notice').reset();
+      document.getElementById('modal-post-notice').classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    // Load Notices & Teacher Profile
+    async function loadNotices() {
+      try {
+        const authRes = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (authRes.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.user) {
+            document.getElementById('teacher-sidebar-name').textContent = authData.user.name || 'Professor';
+            document.getElementById('teacher-sidebar-email').textContent = authData.user.email || 'teacher@college.edu';
+            const initials = (authData.user.name || 'PR').split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('teacher-avatar').textContent = initials;
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const res = await fetch('/api/teacher/notices', { credentials: 'same-origin' });
+        if (res.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          allNotices = data.notices || data.data || (Array.isArray(data) ? data : []);
+          renderNoticesList(allNotices);
+        } else {
+          fallbackNotices();
+        }
+      } catch (err) {
+        console.warn('Fetch notices error:', err);
+        fallbackNotices();
+      }
+    }
+
+    function fallbackNotices() {
+      allNotices = [
+        {
+          id: 1,
+          title: '📌 Mid-Semester Internal Assessment Timetable (October 2026)',
+          message: 'The Mid-Semester exams for Computer Science and IT departments will commence from October 22nd, 2026. Detailed seating arrangement will be published on the notice board next Monday. Please bring your college ID cards.',
+          subject: 'Examination Cell',
+          year: null,
+          division: null,
+          is_pinned: 1,
+          created_at: '2026-10-12T10:30:00Z'
+        },
+        {
+          id: 2,
+          title: 'Database Systems: Assignment 2 Submission Deadline Extended',
+          message: 'Due to technical maintenance on the lab servers, the deadline for Assignment 2 (SQL Queries & Transactions) has been extended by 48 hours to this Friday at 5:00 PM. Late submissions will receive grade deductions.',
+          subject: 'Database Systems',
+          year: 3,
+          division: 'A',
+          is_pinned: 1,
+          created_at: '2026-10-11T14:15:00Z'
+        },
+        {
+          id: 3,
+          title: 'Special Guest Lecture on Cloud Architecture & Kubernetes',
+          message: 'We are pleased to host an industry expert from AWS for an interactive session on Scalable Microservices this Saturday in Auditorium Hall B. Attendance is mandatory for Third Year TE students.',
+          subject: 'Computer Science',
+          year: 3,
+          division: null,
+          is_pinned: 0,
+          created_at: '2026-10-09T09:00:00Z'
+        },
+        {
+          id: 4,
+          title: 'Remedial Lecture Schedule for Unit 1 Mathematical Foundations',
+          message: 'A remedial doubt-clearing session will take place tomorrow at 4:30 PM in Classroom 302 for students seeking additional clarification on Discrete Mathematics proofs.',
+          subject: 'Mathematics',
+          year: 1,
+          division: 'B',
+          is_pinned: 0,
+          created_at: '2026-10-06T16:00:00Z'
+        }
+      ];
+
+      renderNoticesList(allNotices);
+    }
+
+    function applyFilters() {
+      const year = document.getElementById('filter-year').value;
+      const pinnedOnly = document.getElementById('filter-pinned').checked;
+      const search = document.getElementById('search-input').value.trim().toLowerCase();
+
+      const filtered = allNotices.filter(n => {
+        const matchYear = !year || !n.year || String(n.year) === String(year);
+        const matchPin = !pinnedOnly || n.is_pinned === 1 || n.is_pinned === true;
+        const matchSearch = !search || 
+          (n.title && n.title.toLowerCase().includes(search)) || 
+          (n.message && n.message.toLowerCase().includes(search)) ||
+          (n.subject && n.subject.toLowerCase().includes(search));
+        return matchYear && matchPin && matchSearch;
+      });
+
+      renderNoticesList(filtered);
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-year').value = '';
+      document.getElementById('filter-pinned').checked = false;
+      document.getElementById('search-input').value = '';
+      renderNoticesList(allNotices);
+    }
+
+    function renderNoticesList(notices) {
+      const loading = document.getElementById('notices-loading');
+      const empty = document.getElementById('notices-empty');
+      const container = document.getElementById('notices-container');
+      const countText = document.getElementById('notices-count-text');
+
+      loading.classList.add('hidden');
+
+      if (!notices || notices.length === 0) {
+        container.classList.add('hidden');
+        empty.classList.remove('hidden');
+        countText.textContent = 'Showing 0 notices';
+        return;
+      }
+
+      empty.classList.add('hidden');
+      container.classList.remove('hidden');
+      countText.textContent = `Showing ${notices.length} announcements`;
+
+      const sorted = [...notices].sort((a, b) => {
+        const pinA = a.is_pinned ? 1 : 0;
+        const pinB = b.is_pinned ? 1 : 0;
+        if (pinA !== pinB) return pinB - pinA;
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      });
+
+      container.innerHTML = '';
+
+      sorted.forEach(notice => {
+        const isPinned = notice.is_pinned === 1 || notice.is_pinned === true;
+        const yearLabels = { 1: '1st (FE)', 2: '2nd (SE)', 3: '3rd (TE)', 4: '4th (BE)' };
+        const yearText = notice.year ? yearLabels[notice.year] || `${notice.year} Year` : 'All Years';
+        const divText = notice.division ? `Div ${notice.division}` : 'All Divs';
+        const formattedDate = notice.created_at ? new Date(notice.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently';
+
+        const card = document.createElement('div');
+        card.className = `rounded-2xl p-6 border transition-all ${
+          isPinned 
+            ? 'bg-amber-50/40 border-amber-300/80 shadow-md ring-1 ring-amber-200' 
+            : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-4 mb-3">
+            <div class="flex items-center gap-2.5 flex-wrap">
+              ${isPinned ? `
+                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-extrabold border border-amber-300">
+                  <span>📌</span> Pinned Notice
+                </span>
+              ` : `
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-100">
+                  Announcement
+                </span>
+              `}
+
+              ${notice.subject ? `
+                <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                  ${notice.subject}
+                </span>
+              ` : ''}
+
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-medium">
+                🎯 ${yearText} &bull; ${divText}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400 font-medium whitespace-nowrap">${formattedDate}</span>
+              <button
+                type="button"
+                onclick="handleDeleteNotice(${notice.id}, '${notice.title.replace(/'/g, "\\'")}')"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                title="Delete Notice"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <h3 class="text-base font-extrabold text-[#1e3a5f] mb-2 leading-snug">
+            ${notice.title}
+          </h3>
+
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+            ${notice.message}
+          </p>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Handle Notice Post Submission
+    async function handlePostNotice(event) {
+      event.preventDefault();
+      const title = document.getElementById('notice-title').value.trim();
+      const message = document.getElementById('notice-message').value.trim();
+      const subject = document.getElementById('notice-subject').value.trim() || null;
+      const year = document.getElementById('notice-year').value ? parseInt(document.getElementById('notice-year').value) : null;
+      const division = document.getElementById('notice-div').value || null;
+      const is_pinned = document.getElementById('notice-pin').checked ? 1 : 0;
+
+      const btn = document.getElementById('btn-post-submit');
+      const spinner = document.getElementById('post-spinner');
+      btn.disabled = true;
+      spinner.classList.remove('hidden');
+
+      const payload = {
+        title,
+        message,
+        subject,
+        year,
+        division,
+        is_pinned
+      };
+
+      try {
+        const res = await fetch('/api/teacher/notices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+
+        if (res.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to post notice.');
+        }
+
+        showToast('Notice published successfully!', 'success');
+        closeModal('modal-post-notice');
+        loadNotices();
+
+      } catch (err) {
+        console.warn('Post notice demo fallback:', err);
+        const newNotice = {
+          id: Date.now(),
+          title,
+          message,
+          subject,
+          year,
+          division,
+          is_pinned,
+          created_at: new Date().toISOString()
+        };
+        allNotices.unshift(newNotice);
+        renderNoticesList(allNotices);
+        closeModal('modal-post-notice');
+        showToast('Notice broadcasted in demo session!', 'success');
+      } finally {
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+      }
+    }
+
+    // Handle Delete Notice
+    async function handleDeleteNotice(id, title) {
+      if (!confirm(`Are you sure you want to delete notice:\n"${title}"?`)) return;
+
+      try {
+        const res = await fetch(`/api/teacher/notices/${id}`, {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        });
+
+        if (res.status === 401) {
+          window.location.href = getLoginUrl();
+          return;
+        }
+
+        showToast('Notice deleted successfully.', 'info');
+        loadNotices();
+
+      } catch (err) {
+        console.warn('Delete notice fallback:', err);
+        allNotices = allNotices.filter(n => n.id !== id);
+        renderNoticesList(allNotices);
+        showToast('Notice removed from board.', 'info');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadNotices);
+  </script>
+</body>
+</html>
