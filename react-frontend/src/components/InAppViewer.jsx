@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+import { IconDownload, IconFile, IconX } from './icons';
+
 /**
  * InAppViewer.jsx
  * Renders PDF documents directly inside the browser window without triggering a download.
@@ -37,8 +39,8 @@ export default function InAppViewer({ file, onClose }) {
       <header className="bg-slate-900 border-b border-slate-700/80 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 text-white shadow-lg">
         {/* File Info */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center font-bold text-lg">
-            📄
+          <div className="w-9 h-9 rounded-xl bg-red-600/20 text-red-400 border border-red-500/30 flex items-center justify-center">
+            <IconFile className="w-5 h-5" />
           </div>
           <div className="truncate">
             <h2 className="text-sm sm:text-base font-extrabold truncate text-white leading-tight">
@@ -83,7 +85,7 @@ export default function InAppViewer({ file, onClose }) {
             download={title.endsWith('.pdf') ? title : `${title}.pdf`}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-900/30"
           >
-            <span>⬇️</span>
+            <IconDownload className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Download for Offline</span>
             <span className="sm:hidden">Offline</span>
           </a>
@@ -91,10 +93,10 @@ export default function InAppViewer({ file, onClose }) {
           {/* Close Viewer */}
           <button
             onClick={onClose}
-            className="p-1.5 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-colors border border-slate-700"
+            className="p-1.5 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-colors border border-slate-700 flex items-center gap-1.5"
             title="Close Viewer"
           >
-            ✕ <span className="hidden sm:inline">Close</span>
+            <IconX className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Close</span>
           </button>
         </div>
       </header>
