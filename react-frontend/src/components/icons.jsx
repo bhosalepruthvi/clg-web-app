@@ -98,6 +98,14 @@ export const IconX = ({ className }) => (
   </Svg>
 );
 
+export const IconMenu = ({ className }) => (
+  <Svg className={className}>
+    <path d="M4 6h16" />
+    <path d="M4 12h16" />
+    <path d="M4 18h16" />
+  </Svg>
+);
+
 export const IconPlus = ({ className }) => (
   <Svg className={className}>
     <path d="M5 12h14" />

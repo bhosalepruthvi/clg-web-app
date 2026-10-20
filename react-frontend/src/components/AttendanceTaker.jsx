@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+import { IconAlert, IconCheck, IconClipboard } from './icons';
+
 export default function AttendanceTaker() {
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -170,12 +172,12 @@ export default function AttendanceTaker() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
             Roll Call Portal
           </span>
-          <h2 className="text-2xl font-black text-slate-800 mt-2">Take Attendance</h2>
+          <h2 className="text-2xl font-black text-indigo-900 mt-2">Take Attendance</h2>
           <p className="text-xs text-slate-500 mt-1">
             Fast 60-second attendance logging with instant batch filters and toggle switches.
           </p>
@@ -206,15 +208,17 @@ export default function AttendanceTaker() {
           Loading classes...
         </div>
       ) : classes.length === 0 ? (
-        <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center space-y-4">
-          <div className="text-4xl">📋</div>
-          <h3 className="text-lg font-bold text-slate-800">No Classes Available</h3>
+        <div className="bg-white p-10 rounded-2xl border border-indigo-200/70 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-400 flex items-center justify-center">
+            <IconClipboard className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-indigo-900">No Classes Available</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Please create a class in <strong>Class Manager</strong> first to record attendance.
           </p>
         </div>
       ) : (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 space-y-6">
           {/* Class, Batch & Date Filter Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6 border-b border-slate-100">
             {/* Select Class */}
@@ -228,7 +232,7 @@ export default function AttendanceTaker() {
                   setSelectedClassId(e.target.value);
                   setSelectedBatch('All');
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
               >
                 {classes.map((cls) => {
                   const cId = cls.ID || cls.id;
@@ -250,13 +254,13 @@ export default function AttendanceTaker() {
             {/* Select Batch (if Lab) */}
             {isLab ? (
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-purple-700 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-violet-700 mb-1.5">
                   Lab Batch
                 </label>
                 <select
                   value={selectedBatch}
                   onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-purple-50 border border-purple-200 rounded-xl text-purple-950 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
+                  className="w-full px-3.5 py-2.5 bg-violet-50 border border-violet-200 rounded-xl text-violet-950 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white"
                 >
                   <option value="All">All Batches</option>
                   {availableBatches.map((b) => {
@@ -289,7 +293,7 @@ export default function AttendanceTaker() {
                 type="date"
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
               />
             </div>
           </div>
@@ -303,7 +307,11 @@ export default function AttendanceTaker() {
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}
             >
-              <span>{message.type === 'success' ? '✅' : '⚠️'}</span>
+              {message.type === 'success' ? (
+                <IconCheck className="w-4 h-4 shrink-0" />
+              ) : (
+                <IconAlert className="w-4 h-4 shrink-0" />
+              )}
               <span>{message.text}</span>
             </div>
           )}

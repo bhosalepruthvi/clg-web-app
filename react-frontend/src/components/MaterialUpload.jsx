@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+import { IconAlert, IconCheck, IconFile, IconFlask, IconUpload } from './icons';
+
 export default function MaterialUpload() {
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -160,12 +162,12 @@ export default function MaterialUpload() {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
             Digital Courseware
           </span>
-          <h2 className="text-2xl font-black text-slate-800 mt-2">Upload Study Material</h2>
+          <h2 className="text-2xl font-black text-indigo-900 mt-2">Upload Study Material</h2>
           <p className="text-xs text-slate-500 mt-1">
             Publish unit-wise notes, assignment sheets, or lab manual PDFs scoped to divisions or sub-batches.
           </p>
@@ -173,19 +175,21 @@ export default function MaterialUpload() {
       </div>
 
       {loadingClasses ? (
-        <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 text-sm">
+        <div className="bg-white p-12 rounded-2xl border border-indigo-200/70 text-center text-slate-400 text-sm">
           Loading your active courses...
         </div>
       ) : classes.length === 0 ? (
-        <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center space-y-4">
-          <div className="text-4xl">⚠️</div>
-          <h3 className="text-lg font-bold text-slate-800">No Classes Available</h3>
+        <div className="bg-white p-10 rounded-2xl border border-indigo-200/70 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-400 flex items-center justify-center">
+            <IconAlert className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-indigo-900">No Classes Available</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             You need to create at least one lecture or lab class in the <strong>Class Manager</strong> before you can upload notes.
           </p>
         </div>
       ) : (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100">
           {message.text && (
             <div
               className={`p-4 rounded-xl text-xs font-semibold mb-6 flex items-center gap-2 ${
@@ -194,7 +198,11 @@ export default function MaterialUpload() {
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}
             >
-              <span>{message.type === 'success' ? '✅' : '⚠️'}</span>
+              {message.type === 'success' ? (
+                <IconCheck className="w-4 h-4 shrink-0" />
+              ) : (
+                <IconAlert className="w-4 h-4 shrink-0" />
+              )}
               <span>{message.text}</span>
             </div>
           )}
@@ -231,13 +239,13 @@ export default function MaterialUpload() {
               {/* 2. Secondary Dropdown if Lab (Target Batch or All) */}
               {isCurrentLab ? (
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-purple-700 mb-1.5 flex items-center gap-1">
-                    <span>🔬</span> Target Lab Batch
+                  <label className="block text-xs font-bold uppercase tracking-wider text-violet-700 mb-1.5 flex items-center gap-1">
+                    <IconFlask className="w-3.5 h-3.5" /> Target Lab Batch
                   </label>
                   <select
                     value={selectedBatchId}
                     onChange={(e) => setSelectedBatchId(e.target.value)}
-                    className="w-full px-4 py-3 bg-purple-50/50 border border-purple-200 rounded-xl text-purple-950 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
+                    className="w-full px-4 py-3 bg-violet-50/50 border border-violet-200 rounded-xl text-violet-950 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-white"
                   >
                     <option value="">All Batches (Whole Division)</option>
                     {availableBatches.map((b) => (
@@ -319,8 +327,8 @@ export default function MaterialUpload() {
 
                 {selectedFile ? (
                   <div className="space-y-2">
-                    <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-bold">
-                      📄
+                    <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                      <IconFile className="w-5 h-5" />
                     </div>
                     <p className="text-sm font-bold text-slate-800">{selectedFile.name}</p>
                     <p className="text-xs text-slate-500">
@@ -340,8 +348,8 @@ export default function MaterialUpload() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="w-12 h-12 mx-auto rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold">
-                      📥
+                    <div className="w-12 h-12 mx-auto rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                      <IconUpload className="w-5 h-5" />
                     </div>
                     <p className="text-sm font-bold text-slate-700">
                       Drag & Drop your course PDF here, or <span className="text-indigo-600 underline">browse</span>

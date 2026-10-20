@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+import { IconAlert, IconBook, IconCheck, IconPlus } from './icons';
+
 export default function ClassManager({ onClassCreated }) {
   // Form State
   const [academicYear, setAcademicYear] = useState('FE');
@@ -131,26 +133,26 @@ export default function ClassManager({ onClassCreated }) {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+          <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
             Course Management
           </span>
-          <h2 className="text-2xl font-black text-slate-800 mt-2">Class Manager</h2>
+          <h2 className="text-2xl font-black text-indigo-900 mt-2">Class Manager</h2>
           <p className="text-xs text-slate-500 mt-1">
             Configure lecture sections and lab practical batches for your department.
           </p>
         </div>
         <div className="text-right">
           <span className="text-xs text-slate-400 font-semibold block">Active Classes</span>
-          <span className="text-2xl font-black text-[#1e3a5f]">{classes.length}</span>
+          <span className="text-2xl font-black text-indigo-700">{classes.length}</span>
         </div>
       </div>
 
       {/* Creation Form Card */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <span>➕</span> Create New Class or Lab
+        <h3 className="text-lg font-bold text-indigo-900 mb-6 flex items-center gap-2">
+          <IconPlus className="w-5 h-5 text-indigo-500" /> Create New Class or Lab
         </h3>
 
         {message.text && (
@@ -161,7 +163,11 @@ export default function ClassManager({ onClassCreated }) {
                 : 'bg-red-50 text-red-800 border border-red-200'
             }`}
           >
-            <span>{message.type === 'success' ? '✅' : '⚠️'}</span>
+            {message.type === 'success' ? (
+              <IconCheck className="w-4 h-4 shrink-0" />
+            ) : (
+              <IconAlert className="w-4 h-4 shrink-0" />
+            )}
             <span>{message.text}</span>
           </div>
         )}
@@ -177,7 +183,7 @@ export default function ClassManager({ onClassCreated }) {
               <select
                 value={academicYear}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
               >
                 <option value="FE">First Year (FE)</option>
                 <option value="SE">Second Year (SE)</option>
@@ -195,7 +201,7 @@ export default function ClassManager({ onClassCreated }) {
                 <select
                   value={branch}
                   onChange={(e) => setBranch(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                 >
                   <option value="CE">Computer Engineering (CE)</option>
                   <option value="IT">Information Technology (IT)</option>
@@ -228,7 +234,7 @@ export default function ClassManager({ onClassCreated }) {
                     setBatchTags([`${e.target.value}1`, `${e.target.value}2`, `${e.target.value}3`]);
                   }
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
               >
                 {['A', 'B', 'C', 'D', 'E', 'F'].map((div) => (
                   <option key={div} value={div}>
@@ -249,7 +255,7 @@ export default function ClassManager({ onClassCreated }) {
                 placeholder="e.g. Data Structures"
                 value={subjectName}
                 onChange={(e) => setSubjectName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
               />
             </div>
           </div>
@@ -261,7 +267,7 @@ export default function ClassManager({ onClassCreated }) {
                 type="checkbox"
                 checked={isLab}
                 onChange={(e) => handleLabToggle(e.target.checked)}
-                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
               <div>
                 <span className="text-sm font-bold text-slate-800">Is this a Lab session?</span>
@@ -309,14 +315,14 @@ export default function ClassManager({ onClassCreated }) {
                     value={batchInput}
                     onChange={(e) => setBatchInput(e.target.value.toUpperCase())}
                     placeholder={`e.g. ${division}4`}
-                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold uppercase focus:outline-none focus:border-blue-500"
+                    className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold uppercase focus:outline-none focus:border-indigo-500"
                   />
                   <button
                     type="button"
                     onClick={handleAddBatch}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition-colors"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1"
                   >
-                    + Add Batch
+                    <IconPlus className="w-3.5 h-3.5" /> Add Batch
                   </button>
                 </div>
               </div>
@@ -326,7 +332,7 @@ export default function ClassManager({ onClassCreated }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3.5 bg-[#1e3a5f] hover:bg-[#284c7a] text-white font-bold rounded-xl shadow-md transition-all text-sm disabled:opacity-50"
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/20 transition-all text-sm disabled:opacity-50"
           >
             {submitting ? 'Creating Class...' : 'Save & Publish Class'}
           </button>
@@ -335,11 +341,13 @@ export default function ClassManager({ onClassCreated }) {
 
       {/* Existing Classes List */}
       <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
-          <span>📚 Your Active Classes</span>
+        <h3 className="text-lg font-bold text-indigo-900 mb-4 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <IconBook className="w-5 h-5 text-indigo-500" /> Your Active Classes
+          </span>
           <button
             onClick={fetchClasses}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"
           >
             Refresh
           </button>
@@ -365,15 +373,15 @@ export default function ClassManager({ onClassCreated }) {
               return (
                 <div
                   key={classId}
-                  className="p-4 rounded-xl border border-slate-200 hover:border-blue-300 bg-slate-50/50 transition-all flex flex-col justify-between"
+                  className="p-4 rounded-xl border border-indigo-100 hover:border-indigo-300 bg-indigo-50/40 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
                           type === 'Lab/Practical'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
+                            ? 'bg-violet-100 text-violet-700'
+                            : 'bg-indigo-100 text-indigo-700'
                         }`}
                       >
                         {type}
@@ -383,7 +391,7 @@ export default function ClassManager({ onClassCreated }) {
                       </span>
                     </div>
 
-                    <h4 className="text-base font-extrabold text-slate-800 mt-2">{sub}</h4>
+                    <h4 className="text-base font-extrabold text-indigo-900 mt-2">{sub}</h4>
 
                     {type === 'Lab/Practical' && (
                       <div className="mt-3 flex flex-wrap gap-1">

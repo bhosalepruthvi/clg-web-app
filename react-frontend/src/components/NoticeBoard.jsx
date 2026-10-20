@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+import { IconMegaphone, IconPin, IconTrash } from './icons';
+
 const YEARS = ['FE', 'SE', 'TE', 'BE'];
 const DIVISIONS = ['A', 'B', 'C', 'D', 'E'];
 const BRANCHES = ['CE', 'IT', 'MECH', 'ENTC', 'Civil'];
@@ -129,9 +131,9 @@ export default function NoticeBoard() {
       {/* Post form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4"
+        className="bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 p-6 space-y-4"
       >
-        <h3 className="text-lg font-extrabold text-slate-800">Post a Notice</h3>
+        <h3 className="text-lg font-extrabold text-indigo-900">Post a Notice</h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <label className="block">
@@ -139,7 +141,7 @@ export default function NoticeBoard() {
             <select
               value={academicYear}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {YEARS.map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -152,7 +154,7 @@ export default function NoticeBoard() {
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
               disabled={academicYear === 'FE'}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
             >
               {academicYear === 'FE' ? (
                 <option value="Common">Common</option>
@@ -168,7 +170,7 @@ export default function NoticeBoard() {
             <select
               value={division}
               onChange={(e) => setDivision(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {DIVISIONS.map((d) => (
                 <option key={d} value={d}>{d}</option>
@@ -183,7 +185,7 @@ export default function NoticeBoard() {
               onChange={(e) => setBatch(e.target.value.toUpperCase())}
               placeholder="e.g. A1"
               maxLength={10}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </label>
         </div>
@@ -197,7 +199,7 @@ export default function NoticeBoard() {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Notice title"
           maxLength={200}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <textarea
           value={body}
@@ -205,7 +207,7 @@ export default function NoticeBoard() {
           placeholder="Write the announcement…"
           rows={4}
           maxLength={2000}
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
         />
 
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -216,12 +218,14 @@ export default function NoticeBoard() {
               onChange={(e) => setIsPinned(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
             />
-            📌 Pin to top
+            <span className="flex items-center gap-1.5">
+              <IconPin className="w-3.5 h-3.5 text-amber-500" /> Pin to top
+            </span>
           </label>
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Posting…' : 'Post Notice'}
           </button>
@@ -243,9 +247,11 @@ export default function NoticeBoard() {
         {loading ? (
           <p className="text-sm text-slate-400 font-semibold">Loading notices…</p>
         ) : notices.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
-            <p className="text-3xl mb-2">📢</p>
-            <p className="text-sm font-extrabold text-slate-700">No notices yet</p>
+          <div className="bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 p-8 text-center">
+            <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-400 flex items-center justify-center">
+              <IconMegaphone className="w-6 h-6" />
+            </div>
+            <p className="text-sm font-extrabold text-indigo-900">No notices yet</p>
             <p className="text-xs text-slate-400 mt-1">
               Post your first announcement using the form above.
             </p>
@@ -259,15 +265,15 @@ export default function NoticeBoard() {
             return (
               <div
                 key={id}
-                className={`bg-white rounded-2xl border shadow-sm p-5 flex items-start justify-between gap-4 ${
-                  pinned ? 'border-amber-300' : 'border-slate-200'
+                className={`bg-white rounded-2xl border shadow-sm shadow-indigo-100 p-5 flex items-start justify-between gap-4 ${
+                  pinned ? 'border-amber-300' : 'border-indigo-100'
                 }`}
               >
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     {pinned && (
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full">
-                        📌 Pinned
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full flex items-center gap-1">
+                        <IconPin className="w-3 h-3" /> Pinned
                       </span>
                     )}
                     <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase rounded-full">
@@ -275,7 +281,7 @@ export default function NoticeBoard() {
                       {targetBatch ? ` · Batch ${targetBatch}` : ''}
                     </span>
                   </div>
-                  <h4 className="text-base font-extrabold text-slate-800 break-words">
+                  <h4 className="text-base font-extrabold text-indigo-900 break-words">
                     {val(n, 'title')}
                   </h4>
                   <p className="text-sm text-slate-600 whitespace-pre-wrap break-words">
@@ -289,8 +295,9 @@ export default function NoticeBoard() {
                 </div>
                 <button
                   onClick={() => handleDelete(id)}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 transition-colors"
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 transition-colors flex items-center gap-1.5"
                 >
+                  <IconTrash className="w-3.5 h-3.5" />
                   Delete
                 </button>
               </div>
