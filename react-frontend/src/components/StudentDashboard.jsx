@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 
 import SubjectVault from './SubjectVault';
 import InAppViewer from './InAppViewer';
+import { LogoMark, IconBell, IconPin } from './icons';
 
 /**
  * AttendanceDonutChart
- * High-performance circular donut chart displaying attendance percentage.
+ * Circular donut chart displaying attendance percentage.
  */
-function AttendanceDonutChart({ percentage = 85, present = 25, absent = 3, total = 28 }) {
+function AttendanceDonutChart({ percentage, present, absent, total }) {
   const radius = 54;
   const stroke = 12;
   const normalizedRadius = radius - stroke * 2;
@@ -16,16 +17,16 @@ function AttendanceDonutChart({ percentage = 85, present = 25, absent = 3, total
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   const isGoodStanding = percentage >= 75;
-  const strokeColor = isGoodStanding ? '#10b981' : '#f59e0b';
+  const strokeColor = isGoodStanding ? '#16a34a' : '#f59e0b';
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
+    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100">
       {/* SVG Donut Circle */}
       <div className="relative flex items-center justify-center">
         <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
           {/* Background Track */}
           <circle
-            stroke="#f1f5f9"
+            stroke="#EEF2FF"
             fill="transparent"
             strokeWidth={stroke}
             r={normalizedRadius}
@@ -51,7 +52,7 @@ function AttendanceDonutChart({ percentage = 85, present = 25, absent = 3, total
 
         {/* Center Label */}
         <div className="absolute text-center">
-          <span className="text-2xl font-black text-slate-800 tracking-tight leading-none block">
+          <span className="text-2xl font-extrabold text-indigo-900 tracking-tight leading-none block">
             {percentage}%
           </span>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -63,11 +64,11 @@ function AttendanceDonutChart({ percentage = 85, present = 25, absent = 3, total
       {/* Breakdown Details */}
       <div className="space-y-2 flex-1 text-center sm:text-left">
         <div className="flex items-center justify-center sm:justify-start gap-2">
-          <span className="text-sm font-extrabold text-slate-800">Attendance Standing</span>
+          <span className="text-sm font-extrabold text-indigo-900">Attendance Standing</span>
           <span
             className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
               isGoodStanding
-                ? 'bg-emerald-100 text-emerald-700'
+                ? 'bg-green-100 text-green-700'
                 : 'bg-amber-100 text-amber-700'
             }`}
           >
@@ -76,14 +77,14 @@ function AttendanceDonutChart({ percentage = 85, present = 25, absent = 3, total
         </div>
 
         <p className="text-xs text-slate-500">
-          You have attended <strong className="text-slate-800">{present}</strong> out of{' '}
-          <strong className="text-slate-800">{total}</strong> conducted lectures & practicals.
+          You have attended <strong className="text-indigo-900">{present}</strong> out of{' '}
+          <strong className="text-indigo-900">{total}</strong> conducted lectures & practicals.
         </p>
 
         {/* Micro metric pills */}
         <div className="flex items-center justify-center sm:justify-start gap-3 pt-1">
           <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="w-2 h-2 rounded-full bg-green-600" />
             <span>Present: {present}</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
@@ -168,23 +169,23 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans pb-16">
+    <div className="min-h-screen bg-indigo-50 pb-16">
       {/* Top Navbar */}
-      <header className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-[#1e3a5f] text-white py-4 px-4 sm:px-8 shadow-md">
+      <header className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-4 sm:px-8 shadow-md shadow-indigo-200">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-black text-sm shadow-md">
-              SF
+            <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
+              <LogoMark className="w-5 h-5" />
             </div>
             <div>
               <h1 className="font-extrabold text-base tracking-tight leading-none">StudyFlow</h1>
-              <p className="text-[10px] text-indigo-200">Student Portal</p>
+              <p className="text-[10px] text-indigo-100">Student Portal</p>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs transition-colors border border-white/15"
+            className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs transition-colors border border-white/20"
           >
             Sign Out
           </button>
@@ -194,43 +195,43 @@ export default function StudentDashboard() {
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 sm:px-8 mt-6 space-y-6">
         {/* Personalized Header Banner */}
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
+        <div className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg shadow-indigo-500/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-indigo-100 text-indigo-800 uppercase tracking-wider">
+              <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-white/20">
                 {academicYear} &bull; {branch}
               </span>
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-700">
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-white/15">
                 Div {division} &bull; Batch {batch}
               </span>
             </div>
 
             {/* Crucial requirement: 'Welcome, Roll No. 36' */}
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Welcome, Roll No. {rollNumber}
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              Logged in as <strong className="text-slate-800">{name}</strong> &bull; Access Code:{' '}
-              <span className="font-mono font-bold text-indigo-600">{accessCode}</span>
+            <p className="text-xs sm:text-sm text-indigo-100 font-medium">
+              Logged in as <strong className="text-white">{name}</strong> &bull; Access Code:{' '}
+              <span className="font-mono font-bold text-white bg-white/15 rounded px-1.5 py-0.5">
+                {accessCode}
+              </span>
             </p>
           </div>
 
           {/* Quick Year/Batch Tag Badge */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center self-start md:self-auto min-w-[130px]">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="p-4 bg-white/10 rounded-2xl border border-white/15 text-center self-start md:self-auto min-w-[130px]">
+            <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider block">
               Assigned Batch
             </span>
-            <span className="text-2xl font-black text-indigo-600 font-mono mt-0.5 block">
-              {batch}
-            </span>
-            <span className="text-[10px] font-semibold text-slate-500">Div {division} Lab</span>
+            <span className="text-2xl font-extrabold font-mono mt-0.5 block">{batch}</span>
+            <span className="text-[10px] font-semibold text-indigo-100">Div {division} Lab</span>
           </div>
         </div>
 
         {/* Donut Chart Attendance Widget */}
         <section>
           {loadingStats ? (
-            <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-center text-sm font-semibold text-slate-500">
+            <div className="p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 text-center text-sm font-semibold text-slate-500">
               Loading attendance…
             </div>
           ) : stats && stats.percentage !== null ? (
@@ -241,8 +242,8 @@ export default function StudentDashboard() {
               total={stats.total}
             />
           ) : (
-            <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-center">
-              <p className="text-sm font-extrabold text-slate-800">No attendance recorded yet</p>
+            <div className="p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 text-center">
+              <p className="text-sm font-extrabold text-indigo-900">No attendance recorded yet</p>
               <p className="text-xs text-slate-500 mt-1">
                 Your attendance summary will appear here once your teachers mark a class.
               </p>
@@ -251,8 +252,11 @@ export default function StudentDashboard() {
         </section>
 
         {/* Notices from teachers */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-extrabold text-slate-800 mb-4">📢 Notices</h3>
+        <section className="bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 p-6">
+          <h3 className="flex items-center gap-2 text-lg font-extrabold text-indigo-900 mb-4">
+            <IconBell className="w-5 h-5 text-indigo-600" />
+            Notice Board
+          </h3>
           {loadingNotices ? (
             <p className="text-sm text-slate-400 font-semibold">Loading notices…</p>
           ) : notices.length === 0 ? (
@@ -271,22 +275,23 @@ export default function StudentDashboard() {
                     className={`rounded-xl border p-4 ${
                       pinned
                         ? 'border-amber-300 bg-amber-50/50'
-                        : 'border-slate-200 bg-slate-50/50'
+                        : 'border-indigo-100 bg-indigo-50/40'
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                       {pinned && (
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full">
-                          📌 Pinned
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full">
+                          <IconPin className="w-3 h-3" />
+                          Pinned
                         </span>
                       )}
                       {targetBatch && (
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-mono font-bold rounded">
+                        <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-mono font-bold rounded">
                           Batch {targetBatch}
                         </span>
                       )}
                     </div>
-                    <h4 className="text-sm font-extrabold text-slate-800">
+                    <h4 className="text-sm font-extrabold text-indigo-900">
                       {n.title ?? n.TITLE}
                     </h4>
                     <p className="text-sm text-slate-600 whitespace-pre-wrap mt-1">
