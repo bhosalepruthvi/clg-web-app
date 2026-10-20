@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+import { IconAlert, IconArrowLeft, IconArrowRight } from './icons';
+
 export default function TeacherLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,18 +44,21 @@ export default function TeacherLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#1e3a5f] via-[#162740] to-indigo-950 flex flex-col justify-center items-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-white/20">
-        <div className="bg-[#1e3a5f] p-6 text-white text-center">
-          <Link to="/" className="text-xs text-blue-200 hover:text-white mb-2 inline-block">&larr; Back to Role Choice</Link>
+    <div className="min-h-screen bg-indigo-50 flex flex-col justify-center items-center px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-indigo-100 overflow-hidden border border-indigo-200/70">
+        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white text-center">
+          <Link to="/" className="text-xs text-indigo-100 hover:text-white mb-2 inline-flex items-center gap-1">
+            <IconArrowLeft className="w-3.5 h-3.5" /> Back to Role Choice
+          </Link>
           <h2 className="text-2xl font-black">Faculty Portal</h2>
-          <p className="text-xs text-blue-200 mt-1">Sign in with your faculty email and password</p>
+          <p className="text-xs text-indigo-100 mt-1">Sign in with your faculty email and password</p>
         </div>
 
         <form onSubmit={handleLogin} className="p-8 space-y-5">
           {error && (
-            <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
-              {error}
+            <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium flex items-center gap-2">
+              <IconAlert className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -67,7 +72,7 @@ export default function TeacherLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="prof@college.edu"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
             />
           </div>
 
@@ -81,16 +86,23 @@ export default function TeacherLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-[#1e3a5f] hover:bg-[#284c7a] text-white font-bold rounded-xl shadow-lg shadow-blue-900/30 transition-all text-sm disabled:opacity-50"
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Authenticating...' : 'Sign In to Dashboard &rarr;'}
+            {loading ? (
+              'Authenticating...'
+            ) : (
+              <>
+                <span>Sign In to Dashboard</span>
+                <IconArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </form>
       </div>

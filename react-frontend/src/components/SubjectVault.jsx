@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { IconArrowLeft, IconBook, IconFlask, IconFolder, IconSearch, IconX } from './icons';
+import { IconArrowLeft, IconArrowRight, IconBook, IconFlask, IconFolder, IconSearch, IconX } from './icons';
 
 /**
  * SubjectVault.jsx
@@ -159,7 +159,7 @@ export default function SubjectVault({ onSelectFile }) {
 
                 <div className="mt-6 pt-4 border-t border-indigo-100 flex items-center justify-between text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">
                   <span>Open Folder</span>
-                  <span>&rarr;</span>
+                  <IconArrowRight className="w-4 h-4" />
                 </div>
               </div>
             );
@@ -254,7 +254,9 @@ export default function SubjectVault({ onSelectFile }) {
                         <IconBook className="w-3.5 h-3.5" />
                         <span>Read in In-App Viewer</span>
                       </span>
-                      <span className="text-xs text-slate-400">&rarr;</span>
+                      <span className="text-xs text-slate-400 group-hover:text-indigo-500 transition-colors">
+                        <IconArrowRight className="w-4 h-4" />
+                      </span>
                     </div>
                   </div>
                 );

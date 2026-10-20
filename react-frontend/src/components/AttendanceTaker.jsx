@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { IconAlert, IconCheck, IconClipboard } from './icons';
+import { IconAlert, IconArrowRight, IconCheck, IconClipboard } from './icons';
 
 export default function AttendanceTaker() {
   const [classes, setClasses] = useState([]);
@@ -422,7 +422,7 @@ export default function AttendanceTaker() {
                   ) : (
                     <>
                       <span>Submit Attendance for {attendanceDate}</span>
-                      <span>&rarr;</span>
+                      <IconArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>

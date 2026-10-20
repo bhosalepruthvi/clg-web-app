@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { IconAlert, IconCheck, IconFile, IconFlask, IconUpload } from './icons';
+import { IconAlert, IconArrowRight, IconCheck, IconFile, IconFlask, IconUpload } from './icons';
 
 export default function MaterialUpload() {
   const [classes, setClasses] = useState([]);
@@ -371,7 +371,7 @@ export default function MaterialUpload() {
               ) : (
                 <>
                   <span>Upload & Distribute to Students</span>
-                  <span>&rarr;</span>
+                  <IconArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
