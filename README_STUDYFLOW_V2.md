@@ -1,167 +1,186 @@
-# StudyFlow v2 — Oracle + JWT + React
+# StudyFlow — campus notebook release
 
-The current build of StudyFlow. Replaces the legacy SQLite/session stack
-(`server.js` + `public/`, see the main [README](README.md)) with:
+StudyFlow gives each student a class/batch-specific reading shelf, attendance view,
+notice board and planner. Faculty manage classes, students, attendance and materials
+from a daily workspace. The active app is React + Express + Oracle; server.js and
+public/ belong to the older SQLite application.
 
-| Layer | Technology |
-|---|---|
-| Backend | Node.js + Express (`server_studyflow_v2.js`) |
-| Database | Oracle Autonomous DB via `oracledb` connection pool |
-| Auth | JWT (teachers: email + password, bcrypt; students: access code only) |
-| Frontend | React 19 + Vite + Tailwind 4 (`react-frontend/`) |
+## Run locally
 
-## Data model
+- `npm run preview` builds and serves the complete app at http://localhost:3000.
+  This is the best way to test installation and offline behavior on localhost.
+- For editing: `npm start` runs the backend; in another terminal run
+  `npm run dev:frontend`, then visit http://localhost:5173.
+- Without Oracle credentials/wallet, development uses `.local-data/studyflow.json`.
+  It seeds a demo once and persists changes across restarts. Keep one server process
+  per local store. This is a development adapter, not a production database.
+- Demo faculty: `teacher@studyflow.dev` / `Teach#2026`.
+- Demo student: `FE-E-E1-36` / `student123`.
+- Local demo data and uploaded files are ignored by Git. Back them up if needed.
+- Set LOCAL_DEV_MODE=0 to disallow fallback in development.
 
-Academic hierarchy: `academic_year` (FE/SE/TE/BE) → `branch` (`Common` for FE,
-CE/IT/etc. for the rest) → `division` (A–E) → `batch` (lab sub-group, e.g. E1) →
-`roll_number`. Student access codes encode the whole path:
+## What changed
 
-- `FE-E-E1-36` (FE students have no branch — it is implied `Common`)
-- `FE-Common-E-E1-36` (explicit variant, parses identically)
-- `SE-CE-A-A1-12`
+- Ivory, forest green and apricot visual system; notebook-style landing page.
+- Mobile bottom navigation, compact student overview, faculty daily workspace,
+  responsive roster cards, touch-size buttons, focus styles and reduced motion.
+- Password-based student login. Single/bulk enrollment returns random temporary
+  passwords once. First login requires a new password. Teachers assigned to a
+  student's division can reset credentials. Resets invalidate existing JWTs;
+  protected student requests also refresh academic claims from the current record.
+- PDF bytes require authentication and class/batch authorization, not just the
+  material listing. The viewer loads authenticated blobs and provides download
+  and open-in-new-tab fallbacks for mobile browsers.
+- Explicitly saved PDFs in per-user device storage, recently opened materials,
+  read/unread notices, visible connection errors and expired-session handling.
+  Signing out clears saved files, recent items and read state on this device.
+- Weekly timetable, room/batch targeting, assignments with deadlines, text/link
+  submissions (late work marked), teacher submission review, attendance correction
+  requests with approve/reject audit history. Approval records present status.
+- Timetable and assignments can be archived/restored. Each item records the
+  configured academic term. Existing classes/attendance are not automatically
+  migrated into historical semesters.
+- Configurable attendance target and term. Faculty registration in production
+  requires the deployment's faculty invitation code.
+- Optional notice notifications check every minute while the app is open and
+  online. They do not provide server-push notifications after the app closes.
+- PWA manifest, public-shell service worker, update prompt and saved-PDF offline
+  support. APIs and automatic file downloads are never cached by the service worker.
+- Lazy-loaded routes/workspaces and system fonts avoid the remote font dependency.
 
-A **Class** is a `Lecture` or a `Lab/Practical`; labs carry named batches in
-`class_batches`. A **study material** upload targets a whole division
-(`batch_target_id IS NULL`) or one specific lab batch. Students only ever see
-materials matching their own JWT claims.
+## Production upgrade (Oracle)
 
-## Setup
+1. Back up your database and uploads.
+2. For a fresh installation run `schema_studyflow_v2.sql`. For both new and existing
+   v2 installations run `migrations/2026_campus.sql` once to add campus_items.
+   Existing student password_hash/is_first_login columns must exist (included in
+   the v2 schema). No existing academic rows are deleted by the migration.
+3. Configure ORACLE_USER, ORACLE_PASSWORD, ORACLE_CONNECT_STRING and, if required,
+   TNS_ADMIN. Configure a random JWT_SECRET of at least 32 characters. Set a private
+   FACULTY_INVITE_CODE to permit new faculty registrations; leaving it unset closes
+   public faculty registration. Existing faculty can still sign in.
+4. Optionally set ATTENDANCE_TARGET (1–99, default 75), ACADEMIC_TERM,
+   CAMPUS_TIMEZONE (default Asia/Kolkata), CORS_ORIGINS and PORT.
+5. Existing students with no password must receive a faculty-issued reset from
+   Student Directory → Reset login. Share invitations privately. Old student JWTs
+   must sign in again after the security upgrade.
+6. Run `npm run start:prod` behind HTTPS. This command enforces production mode;
+   startup fails without a strong secret or working Oracle connection, and never
+   falls back to demo data. Protect and back up the Oracle database and uploads.
 
-1. **Create the schema.** Run [`schema_studyflow_v2.sql`](schema_studyflow_v2.sql)
-   once against your Oracle database (SQL Worksheet in the OCI console, or SQLcl).
+The live Oracle migration/integration has not been executed by this change.
 
-2. **Configure environment.** Copy `.env.example` to `.env` and set at minimum:
+## Verification
 
-   ```bash
-   ORACLE_USER=ADMIN
-   ORACLE_PASSWORD=...
-   ORACLE_CONNECT_STRING=studyflow_high
-   TNS_ADMIN=./wallet        # folder containing the Autonomous DB wallet
-   JWT_SECRET=...            # required in production; random in dev if unset
-   ```
+- `npm run test:v2`: original backend regression suite plus campus/security tests.
+- `npm run test:e2e`: builds the production frontend, starts an isolated temporary
+  local store on port 4173, and runs desktop Chrome and Pixel 5 browser emulation.
+  Checks login, navigation, timetable, assignment submission, responsive directory,
+  and saved authenticated PDFs reopening after an offline reload.
+- Screenshots: artifacts/ui/. Browser traces/report: test-results/, playwright-report/.
+- No test seeds or deletes the real Oracle database. Live integration remains an
+  explicit separate command and requires its own test Oracle instance.
 
-3. **Seed demo data** (idempotent — safe to re-run, nothing is deleted):
+## Android release checklist
 
-   ```bash
-   npm run seed:oracle
-   ```
+Browser emulation is not a physical Android device test. Before rollout, test a
+lower-end Android phone over a slow network: login and password setup, Back button,
+keyboard, long rosters, large PDFs, install/update, saved-PDF offline access and
+sign-out clearing local files. Installation/service workers need HTTPS except on
+localhost; an HTTP LAN IP alone does not provide the full PWA experience.
 
-   This creates a demo teacher, FE/SE demo students with access codes, and
-   demo classes, and prints all credentials.
+The PDF preview uses the browser's PDF renderer; open/download is the fallback.
+Assignments support text/links, with PDF/PNG/JPEG attachments added after saving a submission.
+The new learning release below adds push support, administrator controls, and semester
+history. Live deployment verification remains separate.
 
-4. **Start the backend:**
+## Division discussions
 
-   ```bash
-   npm run start:v2          # http://localhost:3000
-   ```
+Students have a Discussions tab with text posts, categories, threaded replies,
+editing/deletion of their own messages, and reporting. Access is enforced using
+current academic year, branch and division, across batches. Faculty assigned to
+any class in that division can view reports and delete messages from their
+Division discussions workspace. Deleted messages leave an empty placeholder.
+Unread activity is stored per account on the device and cleared on sign-out;
+the open discussion screen refreshes every 30 seconds. Attachments and push support are included in the learning release below.
 
-5. **Start the frontend** (new terminal):
+Before starting against Oracle, run `migrations/2026_discussions.sql` once,
+including for fresh installs. Local development creates its discussion storage
+automatically. This migration has not been executed against a live Oracle instance.
 
-   ```bash
-   cd react-frontend
-   npm install
-   npm run dev               # http://localhost:5173, proxies /api and /uploads to :3000
-   ```
 
-## Demo credentials (from the seed script)
+## Learning release: assignments, exams, quizzes, administration and history
 
-| Role | Credentials |
-|---|---|
-| Teacher | `teacher@studyflow.dev` / `Teach#2026` |
-| Student (FE) | access code `FE-E-E1-01` … (see seed output) |
-| Student (SE) | access code `SE-CE-A-A1-01` … (see seed output) |
+- Student Planner now includes a Learning centre: calendar, exams, results,
+  practice quizzes, and semester history. Faculty have a Learning centre sidebar entry.
+- Assignment and discussion attachments accept PDF, PNG and JPEG, validated by
+  MIME type and file signature, up to 10 MB each and three per message/submission.
+  Downloads require current authorization. Students first save an answer or link,
+  then attach files to that submission. Files are forced downloads, not embedded HTML.
+- Faculty can grade submissions, leave feedback and request resubmission.
+  Changes to answers or files clear the previous grade. Stale grading requests fail.
+- Exams have dates, rooms, maximum marks and private per-student results.
+- Practice quizzes use four choices per question (up to 20 questions), server-side
+  scoring and explanations after submission. Publishing locks the answer set.
+- Calendar combines weekly classes, assignment deadlines, exams and faculty events.
+- Administrator controls manage departments, faculty access and class ownership.
+  Grant this capability to an EXISTING verified faculty account by setting
+  ADMIN_TEACHER_IDS to its numeric ID (comma-separated for multiple admins).
+  No faculty account is an administrator by default. Disabled faculty are rejected
+  on protected requests, including sessions issued before disabling their access.
+- Closing a term snapshots individual student attendance, submitted answer text,
+  marks and quiz scores. Available materials and submission attachments are copied
+  to private storage. It then archives planner/learning entries and starts the next
+  term. Original academic records are retained. Current student attendance uses the
+  new term's start date. Use the rollover during a quiet period; it is resumable
+  per student/source record but is not a single Oracle transaction.
+- Promote students separately after checking destination year/branch/division/batch.
+  The new login code is returned. Existing sessions refresh their academic membership
+  on the next request. Previous history stays tied to the student's stable ID.
+- Student Notices includes an activity feed with discussion replies, upcoming
+  assignment deadlines, exam results and assignment feedback.
 
-## API overview
+### Database and file setup
 
-All endpoints except `/api/auth/*` require `Authorization: Bearer <JWT>`.
+Apply migrations/2026_learning.sql once, after 2026_campus.sql and
+2026_discussions.sql. Fresh Oracle installations also need schema_studyflow_v2.sql.
+Do not run seed_oracle.js against a database containing real data.
+Private attachments and archived copies live in .local-data/private-files by default;
+set PRIVATE_UPLOADS_DIR to persistent private storage in production. Back up both
+this directory and UPLOADS_DIR alongside the database. Local development and tests
+support these records without Oracle. Live Oracle migration has not been run.
 
-| Method | Endpoint | Access | Purpose |
-|---|---|---|---|
-| POST | `/api/auth/teacher/register` | public | Teacher self-registration |
-| POST | `/api/auth/teacher/login` | public (rate-limited) | Teacher login → JWT |
-| POST | `/api/auth/student/login` | public (rate-limited) | Student code login → JWT |
-| GET | `/api/students` | teacher | Roster with optional year/branch/division/batch filters |
-| POST | `/api/students` | teacher | Create one student (access code generated, returned once) |
-| POST | `/api/students/bulk` | teacher | Create up to 200 students; per-row success/failure report |
-| POST | `/api/classes` | teacher | Create Lecture or Lab/Practical with batches |
-| GET | `/api/classes` | teacher | List own classes + batches |
-| GET | `/api/classes/:id/students` | teacher | Roster for a class, optional `?batch=` filter |
-| POST | `/api/attendance` | teacher (own classes) | Mark attendance — upserts on re-submission |
-| GET | `/api/attendance/student` | student | Own attendance totals; `percentage` is `null` until records exist |
-| POST | `/api/materials/upload` | teacher (own classes) | PDF upload (30 MB max, magic-byte verified) |
-| GET | `/api/materials/teacher` | teacher | Own uploads |
-| DELETE | `/api/materials/:id` | teacher (own) | Delete an upload and its file |
-| GET | `/api/materials/student` | student | Materials scoped to own year/branch/division/batch |
-| POST | `/api/notices` | teacher | Post a notice; `batch` omitted = whole division; FE forces branch `Common` |
-| GET | `/api/notices/teacher` | teacher | Own notices, pinned first |
-| DELETE | `/api/notices/:id` | teacher (own) | Delete a notice |
-| GET | `/api/notices/student` | student | Notices for own year/branch/division; includes division-wide, pinned first |
+### Optional closed-app Web Push
 
-## Testing
+Run `node setup_push.js mailto:YOUR_REAL_CONTACT_EMAIL` once to generate VAPID keys
+into the ignored .env file without printing them. Keep that key pair across restarts.
+Restart the server, serve the production app via HTTPS (localhost works for testing),
+and enable push from Notices → Activity & reminders. The running backend checks
+once per minute; the browser need not remain open. Browser/OS permission, internet
+access and a continuously running backend are required. Push payloads are generic;
+students sign in to see details. Signing out unsubscribes the device. Delivery is
+best-effort, with retry on later ticks and expired subscriptions removed. Run one
+notification worker/server instance to avoid duplicate delivery. Live browser push
+has not been verified in this local session; transport behavior is unit-tested with
+a stub and no external messages are sent by the tests.
 
-```bash
-npm run test:v2                # full suite — no Oracle needed (DB is mocked)
-npm run test:v2:integration    # also runs an end-to-end flow against your live
-                               # Oracle DB (needs ORACLE_* env vars; mutates data)
-```
+Verification: npm run test:v2 includes test_learning.js for access, grading,
+files, exams, quizzes, admin controls, history and push validation. npm run test:e2e
+covers desktop and Android-emulated upload/grading and quiz flows.
 
-The suite (`test_studyflow_v2.js`) boots the real Express app on an ephemeral
-port and injects a mock query executor through the `setQueryExecutor()` seam,
-so no database is required. It covers: helmet/rate-limit/upload headers, auth
-validation, 401/403 gates, cross-teacher authorization, PDF magic-byte
-rejection, file cleanup, attendance upsert semantics, and the fake-percentage
-regression (student stats must return `percentage: null` until records exist).
+### Oracle setup verification — 1 November 2026
 
-## Production
+The configured StudyFlow Oracle database is connected. Its initially empty schema
+now contains all 10 application tables, including the campus, discussion and
+learning migrations. The production-mode backend startup and a database-backed
+login query passed. No faculty/student accounts or demo data were inserted.
+This supersedes the earlier notes that live migration had not been run; full
+live feature testing and browser push delivery remain separate checks.
 
-```bash
-npm run start:prod     # builds the SPA, then serves it from Express on $PORT
-```
+`node setup_oracle.js` creates missing objects from the four schema files while
+preserving existing objects and data. It recognizes equivalent constraint indexes.
+`node setup_oracle.js --check` checks their availability without applying DDL.
+These commands do not upgrade the columns of an existing table.
 
-`start:prod` runs `build:frontend` (Vite build into `react-frontend/dist`)
-and starts `start_prod.js`, which sets `SERVE_FRONTEND=1`:
-`server_studyflow_v2.js` then serves the built SPA with an SPA fallback, so
-one process serves API, uploads, and frontend.
-
-Production env vars:
-
-| Variable | Purpose |
-|---|---|
-| `JWT_SECRET` | **Required.** Signs JWTs (min 32 chars recommended) |
-| `NODE_ENV=production` | Standard signal for production mode |
-| `SERVE_FRONTEND` | `1` = serve `react-frontend/dist` (set automatically by `start:prod`) |
-| `CORS_ORIGINS` | Comma-separated allowed origins (defaults to the two localhost dev origins) |
-| `UPLOADS_DIR` | Upload storage location (defaults to `./uploads`) |
-| `PORT` | HTTP port (default 3000) |
-
-Deploy steps: provision Oracle Autonomous DB, run `schema_studyflow_v2.sql`,
-set the env vars above, then `npm ci && npm run start:prod`.
-
-## Security notes
-
-- `JWT_SECRET` is required in production; development uses an ephemeral random
-  secret (tokens invalidate on restart).
-- `/api/auth/*` is rate-limited (30 attempts / 15 min / IP by default;
-  `AUTH_RATE_LIMIT_OVERRIDE` for test runs only).
-- Uploads must be real PDFs (client MIME is not trusted — file header is
-  verified) and are served with `Content-Type: application/pdf` +
-  `X-Content-Type-Options: nosniff`.
-- Teachers can only act on their own classes/materials (`teacher_id` is checked
-  server-side on every mutation).
-
-## Troubleshooting
-
-- **Attendance submit fails with `ORA-00904: "ATTENDANCE_DATE"`** — your table
-  was created with a different column name than
-  [`schema_studyflow_v2.sql`](schema_studyflow_v2.sql). Rebuild the table from
-  that file (or rename the column to `attendance_date`). Status values must be
-  lowercase `present`/`absent`/`late` per the schema CHECK constraint.
-- **`ORA-28000: account is locked`** — reset the database user password in the
-  OCI console and update `ORACLE_PASSWORD`.
-- **Wallet errors (`ORA-28759` etc.)** — check `TNS_ADMIN` points at the
-  unzipped wallet folder and the wallet is for the right database.
-
-## Legacy files
-
-The superseded intermediate Oracle prototype and dead duplicates live in
-[`_legacy/`](_legacy/) — safe to delete once v2 is verified working.
+The ignored `.env` supplies `ORACLE_PASSWORD`, `ORACLE_WALLET_PASSWORD`,
+`ORACLE_CONNECT_STRING` and `TNS_ADMIN`. The wallet and `.env` must remain private.

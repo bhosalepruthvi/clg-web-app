@@ -1,3 +1,5 @@
+import { appFetch } from '../lib/transport';
+import { authFetch as fetch } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 
 import { IconArrowLeft, IconArrowRight, IconBook, IconFlask, IconFolder, IconSearch, IconX } from './icons';
@@ -21,7 +23,7 @@ export default function SubjectVault({ onSelectFile }) {
 
     try {
       const token = localStorage.getItem('studyflow_jwt') || localStorage.getItem('studyflow_token');
-      const res = await fetch('/api/materials/student', {
+      const res = await appFetch('/api/materials/student', {
         headers: { Authorization: `Bearer ${token}` },
       });
 

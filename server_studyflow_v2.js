@@ -37,6 +37,8 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+// Enable only behind the deployment's single reverse proxy; port 3000 stays private.
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // ----------------------------------------------------
@@ -45,6 +47,7 @@ const PORT = process.env.PORT || 3000;
 // uses an ephemeral random secret (tokens die on restart).
 // ----------------------------------------------------
 let JWT_SECRET = process.env.JWT_SECRET;
+if (process.env.NODE_ENV === 'production' && JWT_SECRET && JWT_SECRET.length < 32) throw new Error('JWT_SECRET must contain at least 32 characters in production.');
 if (!JWT_SECRET) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production.');
@@ -66,14 +69,30 @@ if (process.env.TNS_ADMIN) {
 }
 
 let oraclePool = null;
+let isUsingLocalStore = false;
+let localStore = null;
 
 async function initOraclePool() {
   if (oraclePool) return oraclePool;
+
+  const walletDir = process.env.TNS_ADMIN || path.join(__dirname, 'wallet');
+  const hasWallet = fs.existsSync(walletDir);
+
+  if (!hasWallet && !process.env.ORACLE_PASSWORD) {
+    const err = new Error('ORACLE_WALLET_NOT_FOUND');
+    err.code = 'NJS-516';
+    throw err;
+  }
 
   oraclePool = await oracledb.createPool({
     user: process.env.ORACLE_USER || 'ADMIN',
     password: process.env.ORACLE_PASSWORD || 'YourPassword123#',
     connectString: process.env.ORACLE_CONNECT_STRING || 'studyflow_high',
+    ...(oracledb.thin ? {
+      configDir: walletDir,
+      walletLocation: hasWallet ? walletDir : undefined,
+      walletPassword: process.env.ORACLE_WALLET_PASSWORD
+    } : {}),
     poolMin: 2,
     poolMax: 10,
     poolIncrement: 2
@@ -84,6 +103,11 @@ async function initOraclePool() {
 }
 
 async function executeQuery(sql, binds = [], options = {}) {
+  // If local store fallback is active, route through it
+  if (isUsingLocalStore && localStore) {
+    return localStore.executor(sql, binds);
+  }
+
   let conn;
   try {
     if (!oraclePool) await initOraclePool();
@@ -94,6 +118,20 @@ async function executeQuery(sql, binds = [], options = {}) {
       ...options
     });
     return result;
+  } catch (err) {
+    // If Oracle wallet is not configured or connection failed, activate seamless local dev mode
+    if (process.env.NODE_ENV !== 'production' && process.env.LOCAL_DEV_MODE !== '0' && !oraclePool && (err.code === 'NJS-516' || err.message === 'ORACLE_WALLET_NOT_FOUND' || /ORA-12154/.test(err.message || ''))) {
+      if (!isUsingLocalStore) {
+        isUsingLocalStore = true;
+        const { createLocalStore } = require('./local_dev_store');
+        localStore = createLocalStore({ file: process.env.LOCAL_STORE_PATH || path.join(__dirname, '.local-data', 'studyflow.json') });
+        console.log('💡 Oracle wallet not found in ./wallet. Activated LOCAL OFFLINE DEV MODE (Demo data loaded).');
+        console.log('👉 Teacher login: teacher@studyflow.dev / Teach#2026');
+        console.log('👉 Student login: FE-E-E1-36 or SE-CE-A-A1-12');
+      }
+      return localStore.executor(sql, binds);
+    }
+    throw err;
   } finally {
     if (conn) {
       await conn.close();
@@ -118,7 +156,8 @@ function isUniqueViolation(err) {
 // ----------------------------------------------------
 // Middlewares & Storage Setup
 // ----------------------------------------------------
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: { directives: { 'frame-src': ["'self'", 'blob:'], 'object-src': ["'none'"] } } }));
+app.use('/api', (req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
 const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000')
   .split(',')
   .map((s) => s.trim())
@@ -129,6 +168,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'StudyFlow API', timestamp: new Date().toISOString() });
+});
 
 // Auth rate limiting — access codes are short and guessable, so this
 // endpoint is the brute-force target. AUTH_RATE_LIMIT_OVERRIDE exists
@@ -150,11 +194,19 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 // Serve uploads pinned to application/pdf + nosniff so a renamed hostile
 // file can never be sniffed/executed by the browser; inline display is kept
 // because the SPA's InAppViewer renders same-origin PDFs.
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  next();
-}, express.static(UPLOADS_DIR, { dotfiles: 'ignore', index: false, fallthrough: false }));
+app.use('/uploads', authenticateJWT, async (req, res, next) => {
+  try {
+    const result = await queryExecutor('SELECT sm.*, c.teacher_id, c.academic_year, c.branch, c.division, cb.batch_name AS target_batch FROM study_materials sm JOIN classes c ON c.id = sm.class_id LEFT JOIN class_batches cb ON cb.id = sm.batch_target_id WHERE sm.file_url = :file_url', { file_url: '/uploads' + req.path });
+    const item = (result.rows || []).find(r => r.FILE_URL === '/uploads' + req.path);
+    const eq = (a,b) => String(a).toUpperCase() === String(b).toUpperCase();
+    const allowed = item && (req.user.role === 'teacher' ? Number(item.TEACHER_ID) === Number(req.user.id) : req.user.role === 'student' && eq(item.ACADEMIC_YEAR,req.user.academic_year) && eq(item.BRANCH,req.user.branch) && eq(item.DIVISION,req.user.division) && (!item.TARGET_BATCH || eq(item.TARGET_BATCH,req.user.batch)));
+    if (!allowed) return res.status(404).json({ success: false, error: 'File not found.' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  } catch (err) { next(err); }
+}, express.static(UPLOADS_DIR, { dotfiles: 'deny', index: false, fallthrough: false }));
 
 // Multer storage for PDF study materials
 const storage = multer.diskStorage({
@@ -176,7 +228,7 @@ const upload = multer({
 });
 
 // JWT Verification Middleware
-function authenticateJWT(req, res, next) {
+async function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Authorization token required.' });
@@ -184,11 +236,23 @@ function authenticateJWT(req, res, next) {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    if (decoded.role === 'student') {
+      const student = (await queryExecutor('SELECT * FROM students WHERE id = :id', [Number(decoded.id)])).rows?.[0];
+      if (!student || !student.PASSWORD_HASH || decoded.credential_version !== crypto.createHash('sha256').update(student.PASSWORD_HASH).digest('hex')) return res.status(401).json({ error: 'Your account changed. Please sign in again.' });
+      Object.assign(decoded, { academic_year: student.ACADEMIC_YEAR, branch: student.BRANCH, division: student.DIVISION, batch: student.BATCH });
+    }
+    if (decoded.role === 'teacher') {
+      const access = (await queryExecutor('SELECT * FROM app_records')).rows || [];
+      const version = access.find(r => r.KIND === 'password_version' && Number(r.OWNER_ID) === Number(decoded.id));
+      if (version && JSON.parse(version.PAYLOAD).version !== decoded.credential_version) return res.status(401).json({error:'Your password changed. Please sign in again.'});
+      if (access.some(r => r.KIND === 'faculty_access' && Number(r.OWNER_ID) === Number(decoded.id) && JSON.parse(r.PAYLOAD).disabled)) return res.status(403).json({error:'Your faculty access has been disabled. Contact an administrator.'});
+    }
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(403).json({ success: false, error: 'Invalid or expired token.' });
+    if (!['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(err.name)) return next(err);
+    return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
   }
 }
 
@@ -285,6 +349,7 @@ function isPdfFile(filePath) {
 // POST /api/auth/teacher/register
 app.post('/api/auth/teacher/register', async (req, res) => {
   try {
+    if (process.env.NODE_ENV === 'production' && (!process.env.FACULTY_INVITE_CODE || req.body.invite_code !== process.env.FACULTY_INVITE_CODE)) return res.status(403).json({ error: 'A faculty invitation is required. Contact your college administrator.' });
     const name = isNonEmpty(req.body.name, 120);
     const email = isValidEmail(req.body.email) ? req.body.email.trim() : null;
     const password = typeof req.body.password === 'string' ? req.body.password : '';
@@ -362,6 +427,7 @@ app.post('/api/auth/teacher/login', async (req, res) => {
         id: teacher.ID,
         name: teacher.NAME,
         email: teacher.EMAIL,
+        credential_version: crypto.createHash('sha256').update(teacher.PASSWORD_HASH).digest('hex'),
         role: 'teacher'
       },
       JWT_SECRET,
@@ -387,34 +453,30 @@ app.post('/api/auth/teacher/login', async (req, res) => {
 // POST /api/auth/student/login
 app.post('/api/auth/student/login', async (req, res) => {
   try {
-    const { access_code } = req.body;
-    if (!access_code || !access_code.trim()) {
-      return res.status(400).json({ success: false, error: 'access_code is required.' });
-    }
-
-    const parsed = parseAccessCode(access_code);
-    if (!parsed) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid access code format. Expected e.g. FE-E-E1-36 or SE-CE-A-A1-12'
-      });
-    }
-
-    const cleanCode = access_code.trim().toUpperCase();
-
-    // Query students table matching access_code
-    const sql = `
-      SELECT id, name, academic_year, branch, division, batch, roll_number, access_code
-      FROM students
-      WHERE UPPER(access_code) = :code
-    `;
-    const result = await queryExecutor(sql, [cleanCode]);
+    const { access_code, password, new_password, email } = req.body;
+    const byEmail = typeof email === 'string' && email.trim();
+    if (!byEmail && (typeof access_code !== 'string' || !access_code.trim())) return res.status(400).json({error:'Enter your email or existing student code.'});
+    if (!byEmail && !parseAccessCode(access_code)) return res.status(400).json({error:'Invalid access code format. Enter your email or existing student code.'});
+    const cleanCode = typeof access_code === 'string' ? access_code.trim().toUpperCase() : '';
+    const sql = byEmail ? 'SELECT * FROM students WHERE LOWER(email) = :email' : 'SELECT * FROM students WHERE UPPER(access_code) = :code';
+    const result = await queryExecutor(sql, [byEmail ? email.trim().toLowerCase() : cleanCode]);
 
     if (!result.rows || result.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'No student found with this access code.' });
     }
 
     const student = result.rows[0];
+    if (typeof password !== 'string' || password.length > 72 || !student.PASSWORD_HASH || !await bcrypt.compare(password, student.PASSWORD_HASH)) {
+      return res.status(401).json({ success: false, error: 'Invalid student code or password. Ask your teacher for an invitation if this is your first visit.' });
+    }
+    if (Number(student.IS_FIRST_LOGIN) === 1) {
+      if (!new_password) return res.json({ requires_password_change: true });
+      if (typeof new_password !== 'string' || new_password.length < 10 || Buffer.byteLength(new_password) > 72 || new_password === password) return res.status(400).json({ error: 'Choose a different password with 10–72 bytes.' });
+      const hash = await bcrypt.hash(new_password, 12);
+      const changed = await queryExecutor('UPDATE students SET password_hash = :password_hash, is_first_login = :is_first_login WHERE id = :id AND password_hash = :previous_hash AND is_first_login = 1', { password_hash: hash, is_first_login: 0, id: student.ID, previous_hash: student.PASSWORD_HASH });
+      if (changed.rowsAffected !== 1) return res.status(409).json({ error: 'This invitation was already used. Sign in with your new password.' });
+      student.PASSWORD_HASH = hash;
+    }
 
     // Return JWT containing exact year, branch, division, and batch
     const token = jwt.sign(
@@ -426,7 +488,8 @@ app.post('/api/auth/student/login', async (req, res) => {
         division: student.DIVISION,
         batch: student.BATCH,
         roll_number: student.ROLL_NUMBER,
-        role: 'student'
+        role: 'student',
+        credential_version: crypto.createHash('sha256').update(student.PASSWORD_HASH).digest('hex')
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -443,7 +506,7 @@ app.post('/api/auth/student/login', async (req, res) => {
         division: student.DIVISION,
         batch: student.BATCH,
         roll_number: student.ROLL_NUMBER,
-        access_code: student.ACCESS_CODE
+        access_code: student.ACCESS_CODE, email: student.EMAIL
       }
     });
   } catch (error) {
@@ -490,9 +553,10 @@ app.post('/api/students', authenticateJWT, async (req, res) => {
       roll_number: rollNumber
     });
 
+    const registrationCode = 'STU-' + crypto.randomBytes(12).toString('hex').toUpperCase();
     const insertSql = `
-      INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code)
-      VALUES (:name, :academic_year, :branch, :division, :batch, :roll_number, :access_code)
+      INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code, password_hash, is_first_login, registration_code)
+      VALUES (:name, :academic_year, :branch, :division, :batch, :roll_number, :access_code, :password_hash, 1, :registration_code)
       RETURNING id INTO :out_id
     `;
     const result = await queryExecutor(insertSql, {
@@ -503,12 +567,13 @@ app.post('/api/students', authenticateJWT, async (req, res) => {
       batch: batch.toUpperCase(),
       roll_number: rollNumber,
       access_code: accessCode,
+      password_hash: null, registration_code: registrationCode,
       out_id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Student created. Share the access code with the student.',
+      message: 'Share the private registration code. The student creates an account with their own email and password.',
       student: {
         id: result.outBinds.out_id[0],
         name,
@@ -517,7 +582,7 @@ app.post('/api/students', authenticateJWT, async (req, res) => {
         division: division.toUpperCase(),
         batch: batch.toUpperCase(),
         roll_number: rollNumber,
-        access_code: accessCode
+        access_code: accessCode, registration_code: registrationCode
       }
     });
   } catch (error) {
@@ -573,9 +638,10 @@ app.post('/api/students/bulk', authenticateJWT, async (req, res) => {
       });
 
       try {
-        const insertSql = `
-          INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code)
-          VALUES (:name, :academic_year, :branch, :division, :batch, :roll_number, :access_code)
+        const registrationCode = 'STU-' + crypto.randomBytes(12).toString('hex').toUpperCase();
+    const insertSql = `
+          INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code, password_hash, is_first_login, registration_code)
+          VALUES (:name, :academic_year, :branch, :division, :batch, :roll_number, :access_code, :password_hash, 1, :registration_code)
           RETURNING id INTO :out_id
         `;
         const result = await queryExecutor(insertSql, {
@@ -586,12 +652,13 @@ app.post('/api/students/bulk', authenticateJWT, async (req, res) => {
           batch: batch.toUpperCase(),
           roll_number: rollNumber,
           access_code: accessCode,
+      password_hash: null, registration_code: registrationCode,
           out_id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
         });
         created.push({
           id: result.outBinds.out_id[0],
           name,
-          access_code: accessCode
+          access_code: accessCode, registration_code: registrationCode
         });
       } catch (err) {
         failed.push({
@@ -637,7 +704,7 @@ app.get('/api/students', authenticateJWT, async (req, res) => {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const sql = `
-      SELECT id, name, academic_year, branch, division, batch, roll_number, access_code, created_at
+      SELECT id, name, academic_year, branch, division, batch, roll_number, access_code, created_at, is_first_login, email, registration_code
       FROM students
       ${where}
       ORDER BY academic_year, branch, division, batch,
@@ -649,6 +716,151 @@ app.get('/api/students', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('Fetch students error:', error);
     return res.status(500).json({ success: false, error: 'Failed to retrieve students.' });
+  }
+});
+
+// PUT /api/students/:id - update an existing student's details and recalculate access code
+app.put('/api/students/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const studentId = Number(req.params.id);
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'Invalid student ID.' });
+    }
+
+    const checkRes = await queryExecutor('SELECT * FROM students WHERE id = :id', [studentId]);
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student not found.' });
+    }
+    const current = checkRes.rows[0];
+
+    const name = isNonEmpty(req.body.name, 120) || current.NAME || current.name;
+    const academicYear = cleanStr(req.body.academic_year || current.ACADEMIC_YEAR || current.academic_year, 10).toUpperCase();
+    let branch = cleanStr(req.body.branch || current.BRANCH || current.branch, 30).toUpperCase();
+    const division = isNonEmpty(req.body.division, 5) || current.DIVISION || current.division;
+    const batch = isNonEmpty(req.body.batch, 10) || current.BATCH || current.batch;
+    const rollNumber = isNonEmpty(req.body.roll_number, 30) || current.ROLL_NUMBER || current.roll_number;
+
+    if (!ACADEMIC_YEARS.includes(academicYear)) {
+      return res.status(400).json({ success: false, error: `academic_year must be one of: ${ACADEMIC_YEARS.join(', ')}.` });
+    }
+    if (academicYear === 'FE') {
+      branch = 'Common';
+    }
+
+    const accessCode = generateAccessCode({
+      academic_year: academicYear,
+      branch,
+      division: division.toUpperCase(),
+      batch: batch.toUpperCase(),
+      roll_number: rollNumber
+    });
+
+    const updateSql = `
+      UPDATE students
+      SET name = :name,
+          academic_year = :academic_year,
+          branch = :branch,
+          division = :division,
+          batch = :batch,
+          roll_number = :roll_number,
+          access_code = :access_code
+      WHERE id = :id
+    `;
+    await queryExecutor(updateSql, {
+      id: studentId,
+      name,
+      academic_year: academicYear,
+      branch,
+      division: division.toUpperCase(),
+      batch: batch.toUpperCase(),
+      roll_number: rollNumber,
+      access_code: accessCode
+    });
+
+    return res.json({
+      success: true,
+      message: 'Student updated successfully.',
+      student: {
+        id: studentId,
+        name,
+        academic_year: academicYear,
+        branch,
+        division: division.toUpperCase(),
+        batch: batch.toUpperCase(),
+        roll_number: rollNumber,
+        access_code: accessCode
+      }
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return res.status(409).json({ success: false, error: 'Duplicate access code conflict.' });
+    }
+    console.error('Update student error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update student.' });
+  }
+});
+
+// DELETE /api/students/:id - remove a student and their attendance records
+app.delete('/api/students/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const studentId = Number(req.params.id);
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'Invalid student ID.' });
+    }
+
+    const checkRes = await queryExecutor('SELECT id FROM students WHERE id = :id', [studentId]);
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student not found.' });
+    }
+
+    // Clean up attendance first
+    await queryExecutor('DELETE FROM attendance WHERE student_id = :id', [studentId]);
+    await queryExecutor('DELETE FROM students WHERE id = :id', [studentId]);
+
+    return res.json({ success: true, message: 'Student and attendance records deleted successfully.' });
+  } catch (error) {
+    console.error('Delete student error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to delete student.' });
+  }
+});
+
+// POST /api/students/:id/regenerate-code - re-issue or refresh access code
+app.post('/api/students/:id/regenerate-code', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const studentId = Number(req.params.id);
+    const checkRes = await queryExecutor('SELECT * FROM students WHERE id = :id', [studentId]);
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Student not found.' });
+    }
+    const student = checkRes.rows[0];
+
+    const accessCode = generateAccessCode({
+      academic_year: student.ACADEMIC_YEAR || student.academic_year,
+      branch: student.BRANCH || student.branch,
+      division: student.DIVISION || student.division,
+      batch: student.BATCH || student.batch,
+      roll_number: student.ROLL_NUMBER || student.roll_number
+    });
+
+    await queryExecutor('UPDATE students SET access_code = :access_code WHERE id = :id', {
+      id: studentId,
+      access_code: accessCode
+    });
+
+    return res.json({
+      success: true,
+      message: 'Access code regenerated successfully.',
+      access_code: accessCode
+    });
+  } catch (error) {
+    console.error('Regenerate code error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to regenerate access code.' });
   }
 });
 
@@ -838,6 +1050,85 @@ app.get('/api/classes/:class_id/students', authenticateJWT, async (req, res) => 
   }
 });
 
+// PUT /api/classes/:id - update a class's subject name or batches (owning teacher only)
+app.put('/api/classes/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const classId = Number(req.params.id);
+    const checkRes = await queryExecutor('SELECT * FROM classes WHERE id = :id', [classId]);
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Class not found.' });
+    }
+    const cls = checkRes.rows[0];
+    if (Number(cls.TEACHER_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'You can only update your own classes.' });
+    }
+
+    const subjectName = isNonEmpty(req.body.subject_name, 120);
+    if (!subjectName) {
+      return res.status(400).json({ success: false, error: 'subject_name is required.' });
+    }
+
+    await queryExecutor('UPDATE classes SET subject_name = :subject_name WHERE id = :id', {
+      id: classId,
+      subject_name: subjectName
+    });
+
+    // If new batch names supplied for a Lab, append any that don't already exist
+    const isLab = (cls.CLASS_TYPE || cls.class_type) === 'Lab/Practical';
+    if (isLab && Array.isArray(req.body.batch_names)) {
+      const existingBatchesRes = await queryExecutor('SELECT batch_name FROM class_batches WHERE class_id = :id', [classId]);
+      const existingNames = new Set((existingBatchesRes.rows || []).map(b => (b.BATCH_NAME || b.batch_name).toUpperCase()));
+
+      const insertBatchSql = `
+        INSERT INTO class_batches (class_id, batch_name)
+        VALUES (:class_id, :batch_name)
+      `;
+      for (const b of req.body.batch_names) {
+        const cleanB = String(b).trim().toUpperCase();
+        if (cleanB && !existingNames.has(cleanB)) {
+          await queryExecutor(insertBatchSql, { class_id: classId, batch_name: cleanB });
+          existingNames.add(cleanB);
+        }
+      }
+    }
+
+    return res.json({ success: true, message: 'Class updated successfully.' });
+  } catch (error) {
+    console.error('Update class error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to update class.' });
+  }
+});
+
+// DELETE /api/classes/:id - delete class and clean up its batches, attendance, and materials
+app.delete('/api/classes/:id', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const classId = Number(req.params.id);
+    const checkRes = await queryExecutor('SELECT * FROM classes WHERE id = :id', [classId]);
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Class not found.' });
+    }
+    const cls = checkRes.rows[0];
+    if (Number(cls.TEACHER_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own classes.' });
+    }
+
+    // Clean up associated records
+    await queryExecutor('DELETE FROM attendance WHERE class_id = :id', [classId]);
+    await queryExecutor('DELETE FROM study_materials WHERE class_id = :id', [classId]);
+    await queryExecutor('DELETE FROM class_batches WHERE class_id = :id', [classId]);
+    await queryExecutor('DELETE FROM classes WHERE id = :id', [classId]);
+
+    return res.json({ success: true, message: 'Class deleted successfully.' });
+  } catch (error) {
+    console.error('Delete class error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to delete class.' });
+  }
+});
+
 // POST /api/attendance - submit attendance roster (upsert: re-marking a day updates records)
 app.post('/api/attendance', authenticateJWT, async (req, res) => {
   try {
@@ -895,6 +1186,84 @@ app.post('/api/attendance', authenticateJWT, async (req, res) => {
   } catch (error) {
     console.error('Attendance submit error:', error);
     return res.status(500).json({ success: false, error: 'Failed to submit attendance.' });
+  }
+});
+
+// GET /api/attendance/history - get past attendance logs for a teacher's class
+app.get('/api/attendance/history', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const classId = Number(req.query.class_id);
+    if (!classId) {
+      return res.status(400).json({ success: false, error: 'class_id query parameter is required.' });
+    }
+
+    // Verify ownership
+    const classRes = await queryExecutor('SELECT teacher_id, subject_name FROM classes WHERE id = :id', [classId]);
+    if (!classRes.rows || classRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Class not found.' });
+    }
+    if (Number(classRes.rows[0].TEACHER_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'Access denied to this class.' });
+    }
+
+    const sql = `
+      SELECT
+        TO_CHAR(attendance_date, 'YYYY-MM-DD') AS att_date,
+        COUNT(*) AS total_marked,
+        SUM(CASE WHEN LOWER(status) = 'present' THEN 1 ELSE 0 END) AS present_count,
+        SUM(CASE WHEN LOWER(status) = 'absent' THEN 1 ELSE 0 END) AS absent_count
+      FROM attendance
+      WHERE class_id = :class_id
+      GROUP BY attendance_date
+      ORDER BY attendance_date DESC
+    `;
+    const result = await queryExecutor(sql, [classId]);
+    return res.json({ success: true, history: result.rows || [] });
+  } catch (error) {
+    console.error('Attendance history error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch attendance history.' });
+  }
+});
+
+// GET /api/attendance/export - export attendance report for a class as CSV-friendly records
+app.get('/api/attendance/export', authenticateJWT, async (req, res) => {
+  try {
+    if (!requireTeacher(req, res)) return;
+
+    const classId = Number(req.query.class_id);
+    if (!classId) {
+      return res.status(400).json({ success: false, error: 'class_id is required.' });
+    }
+
+    const classRes = await queryExecutor('SELECT * FROM classes WHERE id = :id', [classId]);
+    if (!classRes.rows || classRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Class not found.' });
+    }
+    if (Number(classRes.rows[0].TEACHER_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ success: false, error: 'Access denied.' });
+    }
+
+    const sql = `
+      SELECT
+        s.roll_number,
+        s.name,
+        s.division,
+        s.batch,
+        s.access_code,
+        TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS att_date,
+        a.status
+      FROM attendance a
+      JOIN students s ON a.student_id = s.id
+      WHERE a.class_id = :class_id
+      ORDER BY TO_NUMBER(REGEXP_SUBSTR(s.roll_number, '^[0-9]+')) NULLS LAST, s.roll_number ASC, a.attendance_date ASC
+    `;
+    const result = await queryExecutor(sql, [classId]);
+    return res.json({ success: true, class: classRes.rows[0], records: result.rows || [] });
+  } catch (error) {
+    console.error('Attendance export error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to export attendance.' });
   }
 });
 
@@ -1054,7 +1423,7 @@ app.get('/api/materials/student', authenticateJWT, async (req, res) => {
     const { academic_year, branch, division, batch } = req.user;
 
     const sql = `
-      SELECT 
+      SELECT
         sm.id,
         sm.title,
         sm.unit_number,
@@ -1073,7 +1442,7 @@ app.get('/api/materials/student', authenticateJWT, async (req, res) => {
         AND UPPER(c.branch) = UPPER(:branch)
         AND UPPER(c.division) = UPPER(:division)
         AND (
-          sm.batch_target_id IS NULL 
+          sm.batch_target_id IS NULL
           OR UPPER(cb.batch_name) = UPPER(:batch)
         )
       ORDER BY sm.upload_timestamp DESC
@@ -1112,8 +1481,18 @@ app.get('/api/attendance/student', authenticateJWT, async (req, res) => {
 
     const studentId = req.user.id;
 
+    const termConfig = (await require('./app_records').records((...args)=>queryExecutor(...args)).all()).find(r=>r.kind==='config');
+    if (termConfig?.term_started_at) {
+      const {scope}=require('./app_records');
+      const classes=(await queryExecutor('SELECT * FROM classes')).rows.filter(c=>scope(c)===scope(req.user));
+      const ids=new Set(classes.map(c=>Number(c.ID)));
+      const rows=(await queryExecutor('SELECT * FROM attendance WHERE student_id = :student_id',[Number(studentId)])).rows.filter(a=>ids.has(Number(a.CLASS_ID))&&new Date(a.ATTENDANCE_DATE)>=new Date(termConfig.term_started_at.slice(0,10)));
+      const summarize=list=>{const total=list.length,present=list.filter(a=>String(a.STATUS).toLowerCase()==='present').length;return {total,present,absent:total-present,percentage:total?Math.round(100*present/total):null};};
+      return res.json({success:true,stats:summarize(rows),subjects:classes.map(c=>({class_id:c.ID,subject_name:c.SUBJECT_NAME,class_type:c.CLASS_TYPE,...summarize(rows.filter(a=>Number(a.CLASS_ID)===Number(c.ID)))}))});
+    }
+
     const sql = `
-      SELECT 
+      SELECT
         COUNT(*) AS total_count,
         SUM(CASE WHEN LOWER(status) = 'present' THEN 1 ELSE 0 END) AS present_count,
         SUM(CASE WHEN LOWER(status) = 'absent' THEN 1 ELSE 0 END) AS absent_count
@@ -1131,9 +1510,41 @@ app.get('/api/attendance/student', authenticateJWT, async (req, res) => {
     // No records yet: report zeros with a null percentage instead of inventing a number.
     const percentage = total > 0 ? Math.round((present / total) * 100) : null;
 
+    // Also fetch per-subject breakdown for this student
+    const subjectsSql = `
+      SELECT
+        c.id AS class_id,
+        c.subject_name,
+        c.class_type,
+        COUNT(a.id) AS total_sessions,
+        SUM(CASE WHEN LOWER(a.status) = 'present' THEN 1 ELSE 0 END) AS present_sessions,
+        SUM(CASE WHEN LOWER(a.status) = 'absent' THEN 1 ELSE 0 END) AS absent_sessions
+      FROM attendance a
+      JOIN classes c ON a.class_id = c.id
+      WHERE a.student_id = :student_id
+      GROUP BY c.id, c.subject_name, c.class_type
+      ORDER BY c.subject_name ASC
+    `;
+    const subjectsRes = await queryExecutor(subjectsSql, [Number(studentId)]);
+    const subjectsList = (subjectsRes.rows || []).map(r => {
+      const tot = Number(r.TOTAL_SESSIONS || r.total_sessions || 0);
+      const pr = Number(r.PRESENT_SESSIONS || r.present_sessions || 0);
+      const ab = Number(r.ABSENT_SESSIONS || r.absent_sessions || 0);
+      return {
+        class_id: r.CLASS_ID || r.class_id,
+        subject_name: r.SUBJECT_NAME || r.subject_name,
+        class_type: r.CLASS_TYPE || r.class_type,
+        total: tot,
+        present: pr,
+        absent: ab,
+        percentage: tot > 0 ? Math.round((pr / tot) * 100) : null
+      };
+    });
+
     return res.json({
       success: true,
-      stats: { total, present, absent, percentage }
+      stats: { total, present, absent, percentage },
+      subjects: subjectsList
     });
   } catch (error) {
     console.error('Student attendance error:', error);
@@ -1290,6 +1701,15 @@ app.get('/api/notices/student', authenticateJWT, async (req, res) => {
   }
 });
 
+require('./student_registration')({ app, query: (...args) => queryExecutor(...args) });
+require('./password_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+require('./campus_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+require('./discussion_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+require('./file_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+require('./learning_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+require('./admin_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+const notifications = require('./notification_routes')({ app, authenticateJWT, query: (...args) => queryExecutor(...args) });
+
 // ----------------------------------------------------
 // Optional: serve the built React SPA (production mode)
 // ----------------------------------------------------
@@ -1299,6 +1719,9 @@ if (process.env.SERVE_FRONTEND === '1') {
     console.error(`SERVE_FRONTEND=1 but ${distDir} does not exist. Run "npm run build:frontend" first.`);
     process.exit(1);
   }
+  app.get('/.well-known/assetlinks.json', (req, res) => {
+    res.type('application/json').sendFile(path.join(distDir, '.well-known', 'assetlinks.json'), { dotfiles: 'allow' });
+  });
   app.use(express.static(distDir));
   // SPA fallback: every non-API, non-upload GET returns index.html
   app.get('*', (req, res, next) => {
@@ -1329,18 +1752,40 @@ app.use((err, req, res, next) => {
   if (err && (err.status === 404 || err.statusCode === 404)) {
     return res.status(404).json({ success: false, error: 'File not found.' });
   }
+  if (err?.status === 400) return res.status(400).json({ error: err.message });
   console.error('Unhandled error:', err);
   return res.status(500).json({ success: false, error: 'Internal server error.' });
 });
 
 module.exports = { app, setQueryExecutor, resetQueryExecutor, start };
 
-function start(port = PORT) {
-  app.listen(port, () => {
+async function start(port = PORT) {
+  if (process.env.NODE_ENV === 'production') {
+    await initOraclePool();
+    try {
+      await executeQuery('SELECT id FROM campus_items WHERE 1 = 0');
+      await executeQuery('SELECT id FROM discussion_items WHERE 1 = 0');
+      await executeQuery('SELECT id FROM app_records WHERE 1 = 0');
+    }
+    catch (error) {
+      await oraclePool.close(0);
+      oraclePool = null;
+      throw new Error('Campus schema is unavailable. Apply migrations/2026_campus.sql and migrations/2026_discussions.sql and migrations/2026_learning.sql before starting this release. ' + error.message);
+    }
+  }
+  const server = app.listen(port, () => {
     console.log(`StudyFlow Backend Server listening on http://localhost:${port}`);
   });
+  if (notifications.configured()) {
+    let running = false;
+    const timer = setInterval(async () => { if(running)return;running=true;try{await notifications.tick();}catch{console.warn('Notification worker could not complete this check.');}finally{running=false;} }, 60000);
+    timer.unref();server.on('close',()=>clearInterval(timer));
+  }
+  return server;
 }
 
 if (require.main === module) {
-  start();
+  start().catch(error => { console.error('Startup failed:', error.message); process.exitCode = 1; });
 }
+
+

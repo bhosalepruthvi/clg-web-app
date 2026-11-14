@@ -2,18 +2,28 @@
   "name": "college-study-portal",
   "version": "1.0.0",
   "description": "College Study Portal - Teacher & Student Platform",
-  "main": "server.js",
+  "main": "server_studyflow_v2.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "node server_studyflow_v2.js",
+    "dev": "node server_studyflow_v2.js",
+    "dev:backend": "node server_studyflow_v2.js",
+    "dev:frontend": "npm --prefix react-frontend run dev",
+    "dev:legacy": "node server.js",
     "start:v2": "node server_studyflow_v2.js",
     "seed:oracle": "node seed_oracle.js",
     "start:prod": "npm run build:frontend && node start_prod.js",
     "build:frontend": "npm --prefix react-frontend run build",
     "test": "node test_backend.js",
     "test:security": "node test_security.js",
-    "test:v2": "node --test test_studyflow_v2.js",
-    "test:v2:integration": "node run_integration_tests.js"
+    "test:v2": "node --test test_studyflow_v2.js test_campus.js test_learning.js",
+    "test:v2:integration": "node run_integration_tests.js",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:codegen": "playwright codegen http://localhost:5173",
+    "test:e2e:report": "playwright show-report",
+    "pretest:e2e": "npm run build:frontend",
+    "preview": "node preview_local.js",
+    "prepreview": "npm run build:frontend"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -27,6 +37,11 @@
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
-    "oracledb": "^26.0.0"
+    "oracledb": "^26.0.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }
+

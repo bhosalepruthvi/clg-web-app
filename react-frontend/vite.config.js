@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import pwaPlugin from './pwa-plugin.js';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    pwaPlugin(),
   ],
   server: {
     port: 5173,

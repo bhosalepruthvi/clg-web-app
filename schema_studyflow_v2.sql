@@ -27,6 +27,8 @@ CREATE TABLE students (
     batch          VARCHAR2(10) NOT NULL, -- 'E1', 'E2', 'A1', 'A2', etc.
     roll_number    VARCHAR2(30) NOT NULL,
     access_code    VARCHAR2(100) NOT NULL,
+    email          VARCHAR2(255),
+    registration_code VARCHAR2(40),
     password_hash  VARCHAR2(255) DEFAULT NULL,
     is_first_login NUMBER(1) DEFAULT 1 CHECK (is_first_login IN (0, 1)),
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -35,6 +37,8 @@ CREATE TABLE students (
 
 -- Fast lookup indexes for access code login & division rosters
 CREATE INDEX idx_students_access_code ON students(UPPER(access_code));
+CREATE UNIQUE INDEX uq_student_email ON students (LOWER(email));
+CREATE UNIQUE INDEX uq_student_registration ON students (registration_code);
 CREATE INDEX idx_students_hierarchy ON students(academic_year, branch, division, batch);
 
 -- 3. CLASSES TABLE

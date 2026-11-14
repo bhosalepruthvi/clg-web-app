@@ -1,0 +1,23 @@
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),{execFileSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..'),signing=path.join(__dirname,'signing');fs.mkdirSync(signing,{recursive:true});
+const javaHome=process.env.JAVA_HOME || 'C:/Users/PRUTHVI/.jdks/jbr-17.0.14';
+const sdk=process.env.ANDROID_HOME || 'C:/Users/PRUTHVI/AppData/Local/Android/Sdk';
+const passwordFile=path.join(signing,'credentials.json'),key=path.join(signing,'studyflow-release.jks');
+if(!fs.existsSync(passwordFile))fs.writeFileSync(passwordFile,JSON.stringify({password:crypto.randomBytes(32).toString('hex')},null,2),{mode:0o600});
+const env={...process.env,STUDYFLOW_KEY_PASSWORD:JSON.parse(fs.readFileSync(passwordFile)).password};
+const run=(program,args)=>execFileSync(program,args,{env,stdio:['ignore','pipe','pipe']});
+const keytool=path.join(javaHome,'bin/keytool.exe');
+if(!fs.existsSync(key))run(keytool,['-genkeypair','-keystore',key,'-alias','studyflow','-keyalg','RSA','-keysize','3072','-validity','10000','-dname','CN=StudyFlow, OU=Mobile, O=StudyFlow, C=IN','-storepass:env','STUDYFLOW_KEY_PASSWORD','-keypass:env','STUDYFLOW_KEY_PASSWORD']);
+const cert=run(keytool,['-exportcert','-keystore',key,'-alias','studyflow','-storepass:env','STUDYFLOW_KEY_PASSWORD']);
+const fingerprint=new crypto.X509Certificate(cert).fingerprint256;
+const asset=[{relation:['delegate_permission/common.handle_all_urls'],target:{namespace:'android_app',package_name:'org.duckdns.studyflowrmd.app',sha256_cert_fingerprints:[fingerprint]}}];
+const publicDir=path.join(root,'react-frontend/public/.well-known');fs.mkdirSync(publicDir,{recursive:true});fs.writeFileSync(path.join(publicDir,'assetlinks.json'),JSON.stringify(asset,null,2)+'\n');
+fs.writeFileSync(path.join(__dirname,'certificate-fingerprint.txt'),fingerprint+'\n');
+if(process.argv.includes('--key-only')){console.log('Signing key and website verification file ready.');process.exit(0);}
+const native=process.argv.includes('--native');
+const artifacts=path.join(root,'artifacts'),unsigned=native?path.join(root,'react-frontend/android/app/build/outputs/apk/release/app-release-unsigned.apk'):path.join(__dirname,'android/app/build/outputs/apk/release/app-release-unsigned.apk'),aligned=path.join(artifacts,'studyflow-aligned.apk'),output=path.join(artifacts,native?'StudyFlow-2.0.0.apk':'StudyFlow-1.0.0.apk');
+run(path.join(sdk,'build-tools/36.0.0/zipalign.exe'),['-f','-p','4',unsigned,aligned]);
+const signer=path.join(sdk,'build-tools/36.0.0/lib/apksigner.jar');
+run(path.join(javaHome,'bin/java.exe'),['-jar',signer,'sign','--ks',key,'--ks-key-alias','studyflow','--ks-pass','env:STUDYFLOW_KEY_PASSWORD','--key-pass','env:STUDYFLOW_KEY_PASSWORD','--out',output,aligned]);
+console.log(run(path.join(javaHome,'bin/java.exe'),['-jar',signer,'verify','--verbose','--print-certs',output]).toString());
+console.log('Signed APK: '+output);

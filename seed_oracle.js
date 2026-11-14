@@ -16,6 +16,7 @@ require('dotenv').config();
 
 const oracledb = require('oracledb');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const path = require('path');
 
 const TNS_ADMIN = process.env.TNS_ADMIN || path.join(__dirname, 'wallet');
@@ -79,6 +80,11 @@ async function run() {
     user: process.env.ORACLE_USER || 'ADMIN',
     password: process.env.ORACLE_PASSWORD || 'YourPassword123#',
     connectString: process.env.ORACLE_CONNECT_STRING || 'studyflow_high',
+    ...(oracledb.thin ? {
+      configDir: TNS_ADMIN,
+      walletLocation: require('fs').existsSync(TNS_ADMIN) ? TNS_ADMIN : undefined,
+      walletPassword: process.env.ORACLE_WALLET_PASSWORD
+    } : {}),
     poolMin: 1,
     poolMax: 4
   });
@@ -131,9 +137,10 @@ async function run() {
         skipped++;
         continue;
       }
+      const initialPassword=crypto.randomBytes(12).toString('base64url');
       await conn.execute(
-        `INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code)
-         VALUES (:name, :year, :branch, :division, :batch, :roll, :code)`,
+        `INSERT INTO students (name, academic_year, branch, division, batch, roll_number, access_code, password_hash, is_first_login)
+         VALUES (:name, :year, :branch, :division, :batch, :roll, :code, :password_hash, 1)`,
         {
           name: s.name,
           year: s.academic_year,
@@ -141,12 +148,12 @@ async function run() {
           division: s.division,
           batch: s.batch,
           roll: s.roll_number,
-          code
+          code, password_hash: await bcrypt.hash(initialPassword,12)
         },
         { autoCommit: true }
       );
       created++;
-      createdCodes.push({ name: s.name, access_code: code });
+      createdCodes.push({ name: s.name, access_code: code, initial_password: initialPassword });
     }
     console.log(`Students: ${created} created, ${skipped} already existed.`);
 
@@ -252,9 +259,9 @@ async function run() {
 
     console.log('\n================ DEMO CREDENTIALS ================');
     console.log(`Teacher login : ${DEMO_TEACHER.email} / ${DEMO_TEACHER.password}`);
-    console.log('Student codes (code-only login):');
+    console.log('Student invitations (temporary password must be changed on first login):');
     for (const c of createdCodes) {
-      console.log(`  ${c.access_code}  ->  ${c.name}`);
+      console.log(`  ${c.access_code} / ${c.initial_password}  ->  ${c.name}`);
     }
     console.log('==================================================\n');
     console.log('Seed complete.');

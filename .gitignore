@@ -40,3 +40,17 @@ Desktop.ini
 .__verify*
 .__diag.js
 .npm-cache/
+
+# Persistent local StudyFlow demo data
+.local-data/
+
+# Generated UI review screenshots
+artifacts/
+
+# Generated browser test reports
+playwright-report/
+test-results/
+
+# Local signing credentials
+*.jks
+*.keystore

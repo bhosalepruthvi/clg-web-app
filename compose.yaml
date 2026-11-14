@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      LOCAL_DEV_MODE: '0'
+      TRUST_PROXY: '1'
+      TNS_ADMIN: /run/oracle-wallet
+      UPLOADS_DIR: /data/uploads
+      PRIVATE_UPLOADS_DIR: /data/private-files
+      CORS_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN in .env}
+    volumes:
+      - ./wallet:/run/oracle-wallet:ro
+      - studyflow_data:/data
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  studyflow_data:
+  caddy_data:
+  caddy_config:

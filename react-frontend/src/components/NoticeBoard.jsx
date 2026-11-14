@@ -1,3 +1,5 @@
+import { appFetch } from '../lib/transport';
+import { authFetch as fetch } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 
 import { IconMegaphone, IconPin, IconTrash } from './icons';
@@ -35,7 +37,7 @@ export default function NoticeBoard() {
 
   const fetchNotices = async () => {
     try {
-      const res = await fetch('/api/notices/teacher', {
+      const res = await appFetch('/api/notices/teacher', {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       const data = await res.json();
@@ -71,7 +73,7 @@ export default function NoticeBoard() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/notices', {
+      const res = await appFetch('/api/notices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +110,7 @@ export default function NoticeBoard() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this notice? Students will no longer see it.')) return;
     try {
-      const res = await fetch(`/api/notices/${id}`, {
+      const res = await appFetch(`/api/notices/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${getToken()}` },
       });

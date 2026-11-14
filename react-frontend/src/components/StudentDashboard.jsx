@@ -1,323 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
-import SubjectVault from './SubjectVault';
+import PasswordSettings from './PasswordSettings';
+import NotificationCentre from './NotificationCentre';
+import LearningHub from './LearningHub';
+import DivisionDiscussions from './DivisionDiscussions';
+import NoticeAlerts from './NoticeAlerts';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { api, logout, owner, profile } from '../lib/api';
+import MaterialLibrary from './MaterialLibrary';
 import InAppViewer from './InAppViewer';
-import { LogoMark, IconBell, IconPin } from './icons';
-
-/**
- * AttendanceDonutChart
- * Circular donut chart displaying attendance percentage.
- */
-function AttendanceDonutChart({ percentage, present, absent, total }) {
-  const radius = 54;
-  const stroke = 12;
-  const normalizedRadius = radius - stroke * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  const isGoodStanding = percentage >= 75;
-  const strokeColor = isGoodStanding ? '#16a34a' : '#f59e0b';
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100">
-      {/* SVG Donut Circle */}
-      <div className="relative flex items-center justify-center">
-        <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
-          {/* Background Track */}
-          <circle
-            stroke="#EEF2FF"
-            fill="transparent"
-            strokeWidth={stroke}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-          {/* Progress Ring */}
-          <circle
-            stroke={strokeColor}
-            fill="transparent"
-            strokeWidth={stroke}
-            strokeDasharray={`${circumference} ${circumference}`}
-            style={{
-              strokeDashoffset,
-              transition: 'stroke-dashoffset 0.8s ease-in-out',
-            }}
-            strokeLinecap="round"
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-        </svg>
-
-        {/* Center Label */}
-        <div className="absolute text-center">
-          <span className="text-2xl font-extrabold text-indigo-900 tracking-tight leading-none block">
-            {percentage}%
-          </span>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Overall
-          </span>
-        </div>
-      </div>
-
-      {/* Breakdown Details */}
-      <div className="space-y-2 flex-1 text-center sm:text-left">
-        <div className="flex items-center justify-center sm:justify-start gap-2">
-          <span className="text-sm font-extrabold text-indigo-900">Attendance Standing</span>
-          <span
-            className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-              isGoodStanding
-                ? 'bg-green-100 text-green-700'
-                : 'bg-amber-100 text-amber-700'
-            }`}
-          >
-            {isGoodStanding ? 'Above 75% Safe' : 'Below 75% Warning'}
-          </span>
-        </div>
-
-        <p className="text-xs text-slate-500">
-          You have attended <strong className="text-indigo-900">{present}</strong> out of{' '}
-          <strong className="text-indigo-900">{total}</strong> conducted lectures & practicals.
-        </p>
-
-        {/* Micro metric pills */}
-        <div className="flex items-center justify-center sm:justify-start gap-3 pt-1">
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-green-600" />
-            <span>Present: {present}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-            <span>Absent: {absent}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+import CampusPlanner from './CampusPlanner';
+import { LogoMark, IconBook, IconClipboard, IconBell, IconLayers } from './icons';
+const tabs=[['home','Home',LogoMark],['materials','Materials',IconBook],['planner','Planner',IconLayers],['attendance','Attendance',IconClipboard],['notices','Notices',IconBell],['discussions','Discussions',IconBook]];
+function projection(p,t,target){if(!t)return 'Your progress starts with your first class.';const needed=Math.max(0,Math.ceil((target*t-100*p)/(100-target)));return needed?`Attend the next ${needed} classes to reach ${target}%.`:`${Math.max(0,Math.floor(100*p/target-t))} classes of buffer at your ${target}% target.`;}
+export default function StudentDashboard(){
+ const [params,setParams]=useSearchParams();const tab=tabs.some(t=>t[0]===params.get('view'))?params.get('view'):'home';const navigate=id=>setParams({view:id});
+ const student=profile(), name=student.name||student.NAME||'Student';
+ const [attendance,setAttendance]=useState(null),[notices,setNotices]=useState([]),[config,setConfig]=useState({threshold:75,term:'Current semester'}),[errors,setErrors]=useState({}),[loading,setLoading]=useState(true),[file,setFile]=useState(null),[plannerMode,setPlannerMode]=useState('timetable');
+ const readKey=`studyflow-read:${owner()}`;
+ const [read,setRead]=useState(()=>{try{return JSON.parse(localStorage.getItem(readKey)||'[]');}catch{return [];}});
+ const close=useCallback(()=>setFile(null),[]);
+ const load=async()=>{setLoading(true);setErrors({});await Promise.all([['attendance','/api/attendance/student',setAttendance],['notices','/api/notices/student',d=>setNotices(d.notices||[])],['config','/api/campus/config',setConfig]].map(async([key,url,save])=>{try{save(await api(url));}catch(e){setErrors(old=>({...old,[key]:e.message}));}}));setLoading(false);};
+ useEffect(()=>{load();},[]);
+ const unread=notices.filter(n=>!read.includes(n.id??n.ID)).length;
+ const markRead=id=>{const next=[...new Set([...read,id])];setRead(next);try{localStorage.setItem(readKey,JSON.stringify(next));}catch{}};
+ const failure=key=>errors[key]&&<div className="error-card" role="alert">{errors[key]} <button onClick={load}>Retry</button></div>;
+ const stats=attendance?.stats;
+ const noticeCard=n=><article key={n.id??n.ID} className="paper-card notice-card"><div className="section-heading"><span className="eyebrow">{Number(n.is_pinned??n.IS_PINNED)?'● PINNED NOTICE':'CLASS UPDATE'}</span>{!read.includes(n.id??n.ID)&&<span className="new-dot">New</span>}</div><h3>{n.title??n.TITLE}</h3><p className="whitespace-pre-wrap">{n.body??n.BODY}</p><p className="muted">{n.teacher_name??n.TEACHER_NAME} · {new Date(n.created_at??n.CREATED_AT).toLocaleDateString()}</p>{!read.includes(n.id??n.ID)&&<button className="quiet-link" onClick={()=>markRead(n.id??n.ID)}>Mark as read ✓</button>}</article>;
+ return <div className="student-app"><header className="workspace-header"><a href="/student-dashboard" className="wordmark"><span className="brand-icon"><LogoMark/></span>studyflow<span className="brand-dot">.</span></a><div className="header-right"><span className="semester-label">{config.term}</span><details className="profile-menu"><summary aria-label="Your profile">{name.charAt(0)}</summary><div className="paper-card" style={{maxHeight:"80vh",overflowY:"auto"}}><strong>{name}</strong><p>{student.academic_year} · {student.branch} · Div {student.division} · {student.batch}</p><p>Student code: <code>{student.access_code}</code></p><p>{student.email}</p><PasswordSettings/><button className="secondary-btn" onClick={logout}>Sign out</button></div></details></div></header>
+ <nav className="student-nav" aria-label="Student navigation">{tabs.map(([id,label,Icon])=><button key={id} aria-current={tab===id?'page':undefined} onClick={()=>navigate(id)}><Icon/><span>{label}</span>{id==='notices'&&unread>0&&<b className="count-dot">{unread}</b>}</button>)}</nav>
+ <main className="student-main" id="main-content"><NoticeAlerts onUpdate={setNotices} visible={tab==='notices'}/>{tab==='home'&&<><section className="welcome-line"><div><span className="eyebrow">YOUR DAILY PAGE / {new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'})}</span><h1>Good to see you, <em>{name.split(' ')[0]}.</em></h1><p>Find your rhythm. Take the next small step.</p></div><span className="welcome-star" aria-hidden="true">✳</span></section><div className="overview-grid"><button className="overview-card dark-card" onClick={()=>navigate('materials')}><span className="eyebrow">01 / THE READING SHELF</span><h2>A little reading.<br/>A lot of possibility.</h2><span>Open your materials ↗</span></button><button className="overview-card" onClick={()=>navigate('attendance')}><span className="eyebrow">02 / YOUR PROGRESS</span><strong className="metric">{errors.attendance?'—':stats?.percentage!=null?`${stats.percentage}%`:'—'}</strong><span>{errors.attendance?'Attendance unavailable':loading?'Loading attendance…':'Overall attendance'} ↗</span></button><button className="overview-card orange-card" onClick={()=>navigate('notices')}><span className="eyebrow">03 / IN THE LOOP</span><strong className="metric">{errors.notices?'—':String(unread).padStart(2,'0')}</strong><span>Unread class updates ↗</span></button></div>{failure('attendance')}{failure('notices')}<CampusPlanner compact/><div className="section-heading"><div><span className="eyebrow">DON’T MISS A THING</span><h2>From your teachers</h2></div><button className="quiet-link" onClick={()=>navigate('notices')}>All notices ↗</button></div><div className="notice-grid">{notices.slice(0,2).map(noticeCard)}</div></>}
+ {tab==='discussions'&&<DivisionDiscussions/>}
+ {tab==='materials'&&<MaterialLibrary onSelectFile={setFile}/>}
+ {tab==='planner'&&<><div className="segmented"><button aria-pressed={plannerMode==='timetable'} onClick={()=>setPlannerMode('timetable')}>Timetable</button><button aria-pressed={plannerMode==='assignment'} onClick={()=>setPlannerMode('assignment')}>Assignments</button><button aria-pressed={plannerMode==='learning'} onClick={()=>setPlannerMode('learning')}>Learning centre</button></div>{plannerMode==='learning'?<LearningHub/>:<CampusPlanner key={plannerMode} mode={plannerMode}/>}</>}
+ {tab==='attendance'&&<><div className="section-heading"><div><span className="eyebrow">SMALL STEPS ADD UP</span><h1>Your attendance</h1></div><button className="secondary-btn" onClick={load}>Refresh ↻</button></div>{failure('attendance')}{failure('config')}{loading?<p role="status">Loading your progress…</p>:!errors.attendance&&<><section className="paper-card attendance-summary"><div className="attendance-ring"><strong>{stats?.percentage!=null?`${stats.percentage}%`:'—'}</strong><span>Overall</span></div><div><h2>{stats?.total?'Keep your momentum.':'A fresh start.'}</h2><p>{stats?.present||0} attended / {stats?.total||0} recorded classes</p><p>{projection(stats?.present||0,stats?.total||0,config.threshold)}</p><small>Check each subject separately. Your configured target is {config.threshold}%.</small></div></section><div className="subject-grid">{attendance?.subjects?.map(s=><article className="paper-card" key={s.class_id}><span className="eyebrow">{s.class_type}</span><h3>{s.subject_name}</h3><strong className="subject-percent">{s.percentage??'—'}%</strong><progress aria-label={`${s.subject_name} attendance`} max="100" value={s.percentage||0}/><p>{s.present} / {s.total} sessions</p><p className="muted">{projection(s.present,s.total,config.threshold)}</p></article>)}</div></>}<CampusPlanner mode="correction"/></>}
+ {tab==='notices'&&<><NotificationCentre/><div className="section-heading"><div><span className="eyebrow">YOUR CLASS, IN THE LOOP</span><h1>The notice board</h1></div><button className="secondary-btn" onClick={load}>Refresh ↻</button></div>{failure('notices')}{loading?<p>Loading updates…</p>:!errors.notices&&notices.length===0?<div className="empty-note"><h3>You’re all caught up.</h3><p>New class updates will appear here.</p></div>:<div className="notice-grid">{notices.map(noticeCard)}</div>}</>}
+ </main><footer className="workspace-footer">STUDYFLOW / A LITTLE MORE IN FLOW.</footer>{file&&<InAppViewer file={file} onClose={close}/>}</div>;
 }
 
-export default function StudentDashboard() {
-  // null until the real stats load — no invented placeholder numbers
-  const [stats, setStats] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [notices, setNotices] = useState([]);
-  const [loadingNotices, setLoadingNotices] = useState(true);
-  const [viewingFile, setViewingFile] = useState(null); // Active file in InAppViewer
-  const navigate = useNavigate();
 
-  // Retrieve authenticated student profile from localStorage
-  const student = JSON.parse(localStorage.getItem('studyflow_student') || '{}');
-  const rollNumber = student.roll_number || student.ROLL_NUMBER || '36';
-  const name = student.name || student.NAME || 'Student';
-  const academicYear = student.academic_year || student.ACADEMIC_YEAR || 'FE';
-  const branch = student.branch || student.BRANCH || 'Common';
-  const division = student.division || student.DIVISION || 'E';
-  const batch = student.batch || student.BATCH || 'E1';
-  const accessCode = student.access_code || student.ACCESS_CODE || 'FE-E-E1-36';
 
-  // Fetch student's real-time attendance stats
-  useEffect(() => {
-    const fetchAttendance = async () => {
-      try {
-        const token = localStorage.getItem('studyflow_jwt') || localStorage.getItem('studyflow_token');
-        const res = await fetch('/api/attendance/student', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (res.ok && data.stats) {
-          setStats(data.stats);
-        }
-      } catch (err) {
-        console.error('Failed to load attendance metrics', err);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
 
-    fetchAttendance();
-  }, []);
-
-  // Fetch notices targeted to this student's year/branch/division/batch
-  useEffect(() => {
-    const fetchNotices = async () => {
-      try {
-        const token = localStorage.getItem('studyflow_jwt') || localStorage.getItem('studyflow_token');
-        const res = await fetch('/api/notices/student', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        if (res.ok && data.notices) {
-          setNotices(data.notices);
-        }
-      } catch (err) {
-        console.error('Failed to load notices', err);
-      } finally {
-        setLoadingNotices(false);
-      }
-    };
-
-    fetchNotices();
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('studyflow_jwt');
-    localStorage.removeItem('studyflow_token');
-    localStorage.removeItem('studyflow_role');
-    localStorage.removeItem('studyflow_student');
-    navigate('/');
-  };
-
-  return (
-    <div className="min-h-screen bg-indigo-50 pb-16">
-      {/* Top Navbar */}
-      <header className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 px-4 sm:px-8 shadow-md shadow-indigo-200">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
-              <LogoMark className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight leading-none">StudyFlow</h1>
-              <p className="text-[10px] text-indigo-100">Student Portal</p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs transition-colors border border-white/20"
-          >
-            Sign Out
-          </button>
-        </div>
-      </header>
-
-      {/* Main Container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-8 mt-6 space-y-6">
-        {/* Personalized Header Banner */}
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white p-6 sm:p-8 rounded-2xl shadow-lg shadow-indigo-500/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-white/20">
-                {academicYear} &bull; {branch}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-white/15">
-                Div {division} &bull; Batch {batch}
-              </span>
-            </div>
-
-            {/* Crucial requirement: 'Welcome, Roll No. 36' */}
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Welcome, Roll No. {rollNumber}
-            </h2>
-            <p className="text-xs sm:text-sm text-indigo-100 font-medium">
-              Logged in as <strong className="text-white">{name}</strong> &bull; Access Code:{' '}
-              <span className="font-mono font-bold text-white bg-white/15 rounded px-1.5 py-0.5">
-                {accessCode}
-              </span>
-            </p>
-          </div>
-
-          {/* Quick Year/Batch Tag Badge */}
-          <div className="p-4 bg-white/10 rounded-2xl border border-white/15 text-center self-start md:self-auto min-w-[130px]">
-            <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-wider block">
-              Assigned Batch
-            </span>
-            <span className="text-2xl font-extrabold font-mono mt-0.5 block">{batch}</span>
-            <span className="text-[10px] font-semibold text-indigo-100">Div {division} Lab</span>
-          </div>
-        </div>
-
-        {/* Donut Chart Attendance Widget */}
-        <section>
-          {loadingStats ? (
-            <div className="p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 text-center text-sm font-semibold text-slate-500">
-              Loading attendance…
-            </div>
-          ) : stats && stats.percentage !== null ? (
-            <AttendanceDonutChart
-              percentage={stats.percentage}
-              present={stats.present}
-              absent={stats.absent}
-              total={stats.total}
-            />
-          ) : (
-            <div className="p-6 bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 text-center">
-              <p className="text-sm font-extrabold text-indigo-900">No attendance recorded yet</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Your attendance summary will appear here once your teachers mark a class.
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* Notices from teachers */}
-        <section className="bg-white rounded-2xl border border-indigo-200/70 shadow-sm shadow-indigo-100 p-6">
-          <h3 className="flex items-center gap-2 text-lg font-extrabold text-indigo-900 mb-4">
-            <IconBell className="w-5 h-5 text-indigo-600" />
-            Notice Board
-          </h3>
-          {loadingNotices ? (
-            <p className="text-sm text-slate-400 font-semibold">Loading notices…</p>
-          ) : notices.length === 0 ? (
-            <p className="text-sm text-slate-400">No notices for your class right now.</p>
-          ) : (
-            <div className="space-y-3">
-              {notices.map((n) => {
-                const nid = n.id ?? n.ID;
-                const pinned = Number(n.is_pinned ?? n.IS_PINNED) === 1;
-                const teacherName = n.teacher_name ?? n.TEACHER_NAME;
-                const createdAt = n.created_at ?? n.CREATED_AT;
-                const targetBatch = n.batch ?? n.BATCH;
-                return (
-                  <div
-                    key={nid}
-                    className={`rounded-xl border p-4 ${
-                      pinned
-                        ? 'border-amber-300 bg-amber-50/50'
-                        : 'border-indigo-100 bg-indigo-50/40'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      {pinned && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-extrabold uppercase rounded-full">
-                          <IconPin className="w-3 h-3" />
-                          Pinned
-                        </span>
-                      )}
-                      {targetBatch && (
-                        <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-mono font-bold rounded">
-                          Batch {targetBatch}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="text-sm font-extrabold text-indigo-900">
-                      {n.title ?? n.TITLE}
-                    </h4>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap mt-1">
-                      {n.body ?? n.BODY}
-                    </p>
-                    <p className="text-[11px] text-slate-400 font-medium mt-2">
-                      {teacherName && <>By {teacherName} · </>}
-                      {createdAt && new Date(createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Subject Vault Component */}
-        <section>
-          <SubjectVault onSelectFile={(file) => setViewingFile(file)} />
-        </section>
-      </main>
-
-      {/* In-App PDF Viewer Modal */}
-      {viewingFile && (
-        <InAppViewer file={viewingFile} onClose={() => setViewingFile(null)} />
-      )}
-    </div>
-  );
-}

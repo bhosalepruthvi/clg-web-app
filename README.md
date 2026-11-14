@@ -1,3 +1,5 @@
+> **Current application:** StudyFlow now runs the React/Oracle campus notebook release. See [current setup, features and upgrade guide](README_STUDYFLOW_V2.md). The guide below documents the legacy SQLite app (`npm run dev:legacy`).
+
 # College Study Portal
 
 A web application for colleges that connects **teachers** and **students** in one

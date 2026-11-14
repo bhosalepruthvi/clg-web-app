@@ -53,6 +53,8 @@ function createMockDb() {
     const S = sql.replace(/\s+/g, ' ').trim();
     state.calls.push({ sql: S, binds });
 
+    // This legacy fixture has no disabled faculty or learning records.
+    if (S === 'SELECT * FROM app_records') return { rows: [] };
     // ---- teachers ----
     if (S.includes('SELECT id, name, email, password_hash FROM teachers')) {
       const email = String(bv(binds, 'email', 0) || '').toLowerCase();
@@ -74,9 +76,35 @@ function createMockDb() {
       state.students.push({
         ID: id, NAME: binds.name, ACADEMIC_YEAR: binds.academic_year, BRANCH: binds.branch,
         DIVISION: binds.division, BATCH: binds.batch, ROLL_NUMBER: binds.roll_number,
-        ACCESS_CODE: binds.access_code
+        ACCESS_CODE: binds.access_code, PASSWORD_HASH: binds.password_hash, IS_FIRST_LOGIN: 1
       });
       return { rows: [], outBinds: { out_id: [id] } };
+    }
+    if (S.startsWith('UPDATE students SET')) {
+      const id = Number(binds.id);
+      const student = state.students.find(s => s.ID === id);
+      if (binds.previous_hash && (!student || student.PASSWORD_HASH !== binds.previous_hash || Number(student.IS_FIRST_LOGIN) !== 1)) return { rowsAffected: 0 };
+      if (student) {
+        if (binds.password_hash !== undefined) student.PASSWORD_HASH=binds.password_hash;
+        if (binds.is_first_login !== undefined) student.IS_FIRST_LOGIN=binds.is_first_login;
+        if (binds.name !== undefined) student.NAME = binds.name;
+        if (binds.academic_year !== undefined) student.ACADEMIC_YEAR = binds.academic_year;
+        if (binds.branch !== undefined) student.BRANCH = binds.branch;
+        if (binds.division !== undefined) student.DIVISION = binds.division;
+        if (binds.batch !== undefined) student.BATCH = binds.batch;
+        if (binds.roll_number !== undefined) student.ROLL_NUMBER = binds.roll_number;
+        if (binds.access_code !== undefined) student.ACCESS_CODE = binds.access_code;
+      }
+      return { rows: [], rowsAffected: student ? 1 : 0 };
+    }
+    if (S.startsWith('DELETE FROM students')) {
+      const id = Number(binds.id || (Array.isArray(binds) ? binds[0] : 0));
+      state.students = state.students.filter(s => s.ID !== id);
+      return { rows: [] };
+    }
+    if (S.includes('FROM students') && (S.includes('id = :id') || S.includes('WHERE id = :id'))) {
+      const id = Number(bv(binds, 'id', 0));
+      return { rows: state.students.filter((s) => s.ID === id) };
     }
     if (S.includes('FROM students') && S.includes('UPPER(access_code)')) {
       const code = up(bv(binds, 'code', 0));
@@ -100,6 +128,24 @@ function createMockDb() {
     if (S.includes('SELECT * FROM classes WHERE id')) {
       const id = Number(bv(binds, 'id', 0));
       return { rows: state.classes.filter((c) => c.ID === id) };
+    }
+    if (S.startsWith('UPDATE classes SET')) {
+      const id = Number(binds.id);
+      const cls = state.classes.find(c => c.ID === id);
+      if (cls && binds.subject_name !== undefined) {
+        cls.SUBJECT_NAME = binds.subject_name;
+      }
+      return { rows: [] };
+    }
+    if (S.startsWith('DELETE FROM classes')) {
+      const id = Number(binds.id || (Array.isArray(binds) ? binds[0] : 0));
+      state.classes = state.classes.filter(c => c.ID !== id);
+      return { rows: [] };
+    }
+    if (S.startsWith('DELETE FROM class_batches')) {
+      const cid = Number(binds.id || (Array.isArray(binds) ? binds[0] : 0));
+      state.batches = state.batches.filter(b => b.CLASS_ID !== cid);
+      return { rows: [] };
     }
     if (S.startsWith('INSERT INTO classes')) {
       const id = ++state.nextId;
@@ -125,6 +171,13 @@ function createMockDb() {
     }
 
     // ---- attendance ----
+    if (S.startsWith('DELETE FROM attendance')) {
+      const cid = bv(binds, 'id', 0) ?? bv(binds, 'class_id', 0);
+      const sid = bv(binds, 'id', 0) ?? bv(binds, 'student_id', 0);
+      if (S.includes('class_id = :id')) state.attendance = state.attendance.filter(a => a.CLASS_ID !== Number(cid));
+      else if (S.includes('student_id = :id')) state.attendance = state.attendance.filter(a => a.STUDENT_ID !== Number(sid));
+      return { rows: [] };
+    }
     if (S.startsWith('MERGE INTO attendance')) {
       state.attendance.push({
         STUDENT_ID: Number(binds.student_id),
@@ -139,6 +192,29 @@ function createMockDb() {
       const mine = state.attendance.filter((a) => a.STUDENT_ID === sid);
       const present = mine.filter((a) => a.STATUS === 'present').length;
       return { rows: [{ TOTAL_COUNT: mine.length, PRESENT_COUNT: present, ABSENT_COUNT: mine.length - present }] };
+    }
+    if (S.includes('COUNT(a.id) AS total_sessions') || S.includes('FROM attendance a JOIN classes c')) {
+      const sid = Number(bv(binds, 'student_id', 0));
+      const mine = state.attendance.filter((a) => a.STUDENT_ID === sid);
+      // Group by class
+      const byClass = {};
+      for (const att of mine) {
+        if (!byClass[att.CLASS_ID]) {
+          const cls = state.classes.find(c => c.ID === att.CLASS_ID) || {};
+          byClass[att.CLASS_ID] = {
+            CLASS_ID: att.CLASS_ID,
+            SUBJECT_NAME: cls.SUBJECT_NAME || 'Subject',
+            CLASS_TYPE: cls.CLASS_TYPE || 'Lecture',
+            TOTAL_SESSIONS: 0,
+            PRESENT_SESSIONS: 0,
+            ABSENT_SESSIONS: 0
+          };
+        }
+        byClass[att.CLASS_ID].TOTAL_SESSIONS++;
+        if (att.STATUS === 'present') byClass[att.CLASS_ID].PRESENT_SESSIONS++;
+        else byClass[att.CLASS_ID].ABSENT_SESSIONS++;
+      }
+      return { rows: Object.values(byClass) };
     }
 
     // ---- materials ----
@@ -158,6 +234,11 @@ function createMockDb() {
       });
       return { rows };
     }
+    if (S.startsWith('DELETE FROM study_materials WHERE class_id')) {
+      const cid = Number(bv(binds, 'id', 0) ?? bv(binds, 'class_id', 0));
+      state.materials = state.materials.filter(m => m.CLASS_ID !== cid);
+      return { rows: [] };
+    }
     if (S.startsWith('DELETE FROM study_materials')) {
       const id = Number(bv(binds, 'id', 0));
       state.materials = state.materials.filter((m) => m.ID !== id);
@@ -170,7 +251,7 @@ function createMockDb() {
         const tch = state.teachers.find((t) => t.ID === cls.TEACHER_ID) || {};
         return {
           ID: m.ID, CLASS_ID: m.CLASS_ID, TITLE: m.TITLE, UNIT_NUMBER: m.UNIT_NUMBER,
-          FILE_URL: m.FILE_URL, FILE_TYPE: 'pdf', SUBJECT_NAME: cls.SUBJECT_NAME,
+          TEACHER_ID: cls.TEACHER_ID, FILE_URL: m.FILE_URL, FILE_TYPE: 'pdf', SUBJECT_NAME: cls.SUBJECT_NAME,
           CLASS_TYPE: cls.CLASS_TYPE, ACADEMIC_YEAR: cls.ACADEMIC_YEAR, BRANCH: cls.BRANCH,
           DIVISION: cls.DIVISION, TARGET_BATCH: bt ? bt.BATCH_NAME : null, TEACHER_NAME: tch.NAME
         };
@@ -279,7 +360,7 @@ function seedTeacher(db, t) {
 function seedStudent(db, over = {}) {
   const s = {
     ID: 500, NAME: 'Test Student', ACADEMIC_YEAR: 'SE', BRANCH: 'CE', DIVISION: 'A',
-    BATCH: 'A1', ROLL_NUMBER: '01', ACCESS_CODE: 'SE-CE-A-A1-01', ...over
+    BATCH: 'A1', ROLL_NUMBER: '01', ACCESS_CODE: 'SE-CE-A-A1-01', PASSWORD_HASH: bcrypt.hashSync('StudentPass!2026', 4), IS_FIRST_LOGIN: 0, ...over
   };
   db.state.students.push(s);
   return s;
@@ -301,7 +382,7 @@ async function loginTeacher(t) {
 }
 
 async function loginStudentCode(code) {
-  const r = await api('POST', '/api/auth/student/login', { body: { access_code: code } });
+  const r = await api('POST', '/api/auth/student/login', { body: { access_code: code, password: 'StudentPass!2026' } });
   assert.equal(r.status, 200, `student login failed: ${JSON.stringify(r.json)}`);
   return r.json.token;
 }
@@ -362,16 +443,19 @@ test('security: auth endpoints advertise rate limiting', async () => {
   assert.ok(r.headers.get('ratelimit-policy'), 'missing RateLimit-Policy header');
 });
 
-test('security: uploads served as PDF with nosniff', async () => {
+test('security: PDF bytes require login and correct class ownership', async () => {
+  seedTeacher(db, TEACHER_A); seedTeacher(db, TEACHER_B); seedClass(db);
   fs.writeFileSync(path.join(TMP_UPLOADS, 'ok.pdf'), '%PDF-1.4 hello');
-  const res = await fetch(`${base}/uploads/ok.pdf`);
-  assert.equal(res.status, 200);
-  assert.match(res.headers.get('content-type'), /application\/pdf/);
-  assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
-
-  const missing = await fetch(`${base}/uploads/missing.pdf`);
-  assert.equal(missing.status, 404);
-  assert.deepEqual(await missing.json(), { success: false, error: 'File not found.' });
+  db.state.materials.push({ ID: 42, CLASS_ID: 10, FILE_URL: '/uploads/ok.pdf' });
+  assert.equal((await fetch(base + '/uploads/ok.pdf')).status, 401);
+  const token = await loginTeacher(TEACHER_A);
+  const response = await fetch(base + '/uploads/ok.pdf', { headers: { Authorization: 'Bearer ' + token } });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /application\/pdf/);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  const other = await loginTeacher(TEACHER_B);
+  assert.equal((await fetch(base + '/uploads/ok.pdf', { headers: { Authorization: 'Bearer ' + other } })).status, 404);
+  assert.equal((await fetch(base + '/uploads/missing.pdf', { headers: { Authorization: 'Bearer ' + token } })).status, 404);
 });
 
 // ---------------------------------------------------------------------------
@@ -695,6 +779,55 @@ test('students: roster list with division filter', async () => {
   assert.equal(r.json.students[0].DIVISION, 'A');
 });
 
+test('students: update student modifies fields and regenerates canonical access code', async () => {
+  seedTeacher(db, TEACHER_A);
+  const stu = seedStudent(db, { ID: 500, NAME: 'Old Name', ACADEMIC_YEAR: 'SE', BRANCH: 'CE', DIVISION: 'A', BATCH: 'A1', ROLL_NUMBER: '10' });
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('PUT', `/api/students/${stu.ID}`, {
+    token,
+    body: { name: 'New Name', roll_number: '99' }
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.json.student.name, 'New Name');
+  assert.equal(res.json.student.roll_number, '99');
+  assert.equal(res.json.student.access_code, 'SE-CE-A-A1-99');
+});
+
+test('students: update non-existent student returns 404', async () => {
+  seedTeacher(db, TEACHER_A);
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('PUT', '/api/students/99999', {
+    token,
+    body: { name: 'Ghost' }
+  });
+  assert.equal(res.status, 404);
+});
+
+test('students: delete student removes student and cascades attendance', async () => {
+  seedTeacher(db, TEACHER_A);
+  const stu = seedStudent(db, { ID: 500 });
+  db.state.attendance.push({ STUDENT_ID: 500, CLASS_ID: 10, ATTENDANCE_DATE: '2026-10-18', STATUS: 'present' });
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('DELETE', `/api/students/${stu.ID}`, { token });
+  assert.equal(res.status, 200);
+  assert.equal(db.state.students.some(s => s.ID === 500), false);
+  assert.equal(db.state.attendance.some(a => a.STUDENT_ID === 500), false);
+});
+
+test('students: regenerate access code recalculates based on student attributes', async () => {
+  seedTeacher(db, TEACHER_A);
+  const stu = seedStudent(db, { ID: 500, ACADEMIC_YEAR: 'TE', BRANCH: 'IT', DIVISION: 'B', BATCH: 'B2', ROLL_NUMBER: '42', ACCESS_CODE: 'OLD-CODE' });
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('POST', `/api/students/${stu.ID}/regenerate-code`, { token });
+  assert.equal(res.status, 200);
+  assert.equal(res.json.access_code, 'TE-IT-B-B2-42');
+  assert.equal(db.state.students.find(s => s.ID === 500).ACCESS_CODE, 'TE-IT-B-B2-42');
+});
+
 // ---------------------------------------------------------------------------
 // Classes
 // ---------------------------------------------------------------------------
@@ -730,6 +863,53 @@ test('classes: FE creation forces Common branch', async () => {
   });
   assert.equal(r.status, 201);
   assert.equal(r.json.class.branch, 'Common');
+});
+
+test('classes: update class renames subject and adds batches', async () => {
+  seedTeacher(db, TEACHER_A);
+  const cls = seedClass(db, { ID: 300, CLASS_TYPE: 'Lab/Practical', SUBJECT_NAME: 'Old Lab' });
+  db.state.batches.push({ ID: 1, CLASS_ID: 300, BATCH_NAME: 'A1' });
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('PUT', `/api/classes/${cls.ID}`, {
+    token,
+    body: { subject_name: 'Advanced Lab', batch_names: ['A1', 'A2', 'A3'] }
+  });
+  assert.equal(res.status, 200);
+  assert.equal(db.state.classes.find(c => c.ID === 300).SUBJECT_NAME, 'Advanced Lab');
+  assert.equal(db.state.batches.filter(b => b.CLASS_ID === 300).length, 3);
+});
+
+test('classes: foreign teacher cannot update or delete class', async () => {
+  seedTeacher(db, TEACHER_A);
+  seedTeacher(db, TEACHER_B);
+  const cls = seedClass(db, { ID: 300, TEACHER_ID: TEACHER_A.id });
+  const tokenB = await loginTeacher(TEACHER_B);
+
+  const putRes = await api('PUT', `/api/classes/${cls.ID}`, {
+    token: tokenB,
+    body: { subject_name: 'Hacked' }
+  });
+  assert.equal(putRes.status, 403);
+
+  const delRes = await api('DELETE', `/api/classes/${cls.ID}`, { token: tokenB });
+  assert.equal(delRes.status, 403);
+});
+
+test('classes: delete class cascades batches, materials, and attendance', async () => {
+  seedTeacher(db, TEACHER_A);
+  const cls = seedClass(db, { ID: 300 });
+  db.state.batches.push({ ID: 1, CLASS_ID: 300, BATCH_NAME: 'A1' });
+  db.state.materials.push({ ID: 10, CLASS_ID: 300, TITLE: 'Notes', FILE_URL: '/test.pdf' });
+  db.state.attendance.push({ STUDENT_ID: 500, CLASS_ID: 300, ATTENDANCE_DATE: '2026-10-18', STATUS: 'present' });
+  const token = await loginTeacher(TEACHER_A);
+
+  const res = await api('DELETE', `/api/classes/${cls.ID}`, { token });
+  assert.equal(res.status, 200);
+  assert.equal(db.state.classes.some(c => c.ID === 300), false);
+  assert.equal(db.state.batches.some(b => b.CLASS_ID === 300), false);
+  assert.equal(db.state.materials.some(m => m.CLASS_ID === 300), false);
+  assert.equal(db.state.attendance.some(a => a.CLASS_ID === 300), false);
 });
 
 // ---------------------------------------------------------------------------
